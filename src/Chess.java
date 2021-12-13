@@ -1,5 +1,14 @@
-public class Chess {
+import javax.swing.*;
+import java.awt.*;
 
+public class Chess {
+Board board = new Board();
+
+    Chess() {
+
+
+
+<<<<<<< Updated upstream
     //These global variables represent the row values of the board, to be used throughout the code
     int a = 0;
     int b = 1;
@@ -175,7 +184,14 @@ public class Chess {
  public static void main(String[] args) {
   new Chess();
  }
+=======
+    }
 
+>>>>>>> Stashed changes
+
+    public static void main(String[] args) {
+        new Chess();
+    }
 
 
 }
