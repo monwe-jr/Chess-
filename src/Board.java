@@ -32,6 +32,7 @@ public class Board implements MouseListener {
         frame.setTitle("Chess");
         createBoard();
         updateGUI(board);
+        frame.addMouseListener(this);
         frame.setSize(800, 800);
         frame.add(panel);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -294,7 +295,7 @@ public class Board implements MouseListener {
             } else {
 
                 if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
-
+                        pos1=null;
                     if (pos1 == null) {
                         pos1 = pos2;
                         temp = validMoves(pos1, board);
@@ -318,6 +319,8 @@ public class Board implements MouseListener {
                         }
 
                         pos2 = new Point(x - 1, y - 1);
+                        j = convertArrayToBoard(pos1);
+                        panel.getComponent(j).setBackground(colorAt(pos1));
                         if (temp.contains(pos2)) {
                             Piece.moveWhitePiece(pos1, pos2, board);
                             Piece.drawBoard(board);
