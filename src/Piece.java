@@ -80,7 +80,7 @@ public class Piece {
      * Draws a board in console
      * @param in board that needs to be drawn
      */
-    private void drawBoard(String[][]in) {
+    static public  void drawBoard(String[][]in) {
         //Draw updated board for players
         for (int i=7; i>-1;i--){
             System.out.println("-----------------------------------------");
@@ -100,11 +100,11 @@ public class Piece {
      * @param board board where movement takes place
      */
 
-    private boolean moveWhitePiece(Point pos1, Point pos2, String[][]board) {
-        int x1 = (int)pos1.getX();
-        int x2 = (int)pos2.getX();
-        int y1 = (int)pos1.getY()-1;
-        int y2 = (int)pos2.getY()-1;
+    static public boolean moveWhitePiece(Point pos1, Point pos2, String[][]board) {
+        int x1 = (int)pos1.x;
+        int x2 = (int)pos2.x;
+        int y1 = (int)pos1.y;
+        int y2 = (int)pos2.y;
         String piece = board[x1][y1];
 
         if (piece == "  " || piece.charAt(0)=='b' ) {
@@ -146,6 +146,9 @@ public class Piece {
                 }
             }
         }
+
+
+
 
         //move the King
         if (piece == "wK") {

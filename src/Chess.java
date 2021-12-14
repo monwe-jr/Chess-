@@ -3,8 +3,9 @@ import java.awt.*;
 public class Chess {
 
 
-Piece piece = new Piece();
-Board board = new Board(piece.board);
+int turn = 0;
+
+Board board = new Board();
 
 
     Chess() {
