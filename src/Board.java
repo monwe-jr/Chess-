@@ -3,27 +3,28 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
-import java.util.Arrays;
+
 
 public class Board implements MouseListener {
-
+    int t; //turn
+    boolean gO; //game over
     Piece pieces = new Piece();
-    String[][] board = pieces.board;
+    String[][] board = pieces.board;  //2D array that represents the state of the game
     JFrame frame = new JFrame();
-    JPanel panel = new JPanel(new GridLayout(8, 8));
+    JPanel panel = new JPanel(new GridLayout(8, 8));  //initializes JPanel layout
 
-    ImageIcon pawnW = new ImageIcon("pawnW.png");
-    ImageIcon pawnB = new ImageIcon("pawnB.png");
-    ImageIcon rookW = new ImageIcon("rookW.png");
-    ImageIcon rookB = new ImageIcon("rookB.png");
-    ImageIcon horseW = new ImageIcon("horseW.png");
-    ImageIcon horseB = new ImageIcon("horseB.png");
-    ImageIcon bishopW = new ImageIcon("bishopW.png");
-    ImageIcon bishopB = new ImageIcon("bishopB.png");
-    ImageIcon queenW = new ImageIcon("queenW.png");
-    ImageIcon queenB = new ImageIcon("queenB.png");
-    ImageIcon kingW = new ImageIcon("kingW.png");
-    ImageIcon kingB = new ImageIcon("kingB.png");
+    ImageIcon pawnW = new ImageIcon("pawnW.png");    //white pawn
+    ImageIcon pawnB = new ImageIcon("pawnB.png");    //black pawn
+    ImageIcon rookW = new ImageIcon("rookW.png");    //white rook
+    ImageIcon rookB = new ImageIcon("rookB.png");     //black rook
+    ImageIcon horseW = new ImageIcon("horseW.png");   //white knight
+    ImageIcon horseB = new ImageIcon("horseB.png");   //black knight
+    ImageIcon bishopW = new ImageIcon("bishopW.png");  //white bishop
+    ImageIcon bishopB = new ImageIcon("bishopB.png");  //black bishop
+    ImageIcon queenW = new ImageIcon("queenW.png");    //white queen
+    ImageIcon queenB = new ImageIcon("queenB.png");    //black queen
+    ImageIcon kingW = new ImageIcon("kingW.png");      //black king
+    ImageIcon kingB = new ImageIcon("kingB.png");      //black king
 
 
     Board() {
@@ -31,18 +32,17 @@ public class Board implements MouseListener {
         frame.setTitle("Chess");
         createBoard();
         updateGUI(board);
-
-        frame.addMouseListener(this);
-        frame.addMouseListener(this);
         frame.setSize(800, 800);
         frame.add(panel);
-        frame.setDefaultCloseOperation(3);
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
 
     }
 
-
+    /**
+     * creates initial grid
+     */
     private void createBoard() {
         int c = 0;
         int k = 0;
@@ -70,28 +70,39 @@ public class Board implements MouseListener {
             c = c + 1;
             c = c % 2;
         }
-
     }
 
+
+    /**
+     * Converts board coordinates to array coordinates
+     * @param x   Board coordinate
+     * @return    Array coordinate
+     */
     private Point convertBoardToArray(int x) {
         int pos = 0;
-        Point p = null;
+
 
         for (int i = board.length - 1; i >= 0; i--) {
             for (int j = 0; j < board[i].length; j++) {
 
                 if (pos == x) {
-                    p.setLocation(j, i);
+                    return new Point(j,i);
                 }
 
                 pos++;
             }
         }
 
-        return p;
+
+        return null;
     }
 
 
+    /**
+     * Converts array coordinates to board coordinates
+     * @param p  Board coordinate
+     * @return  Array coordinate
+     */
     private int convertArrayToBoard(Point p) {
         int k = 0;
         int x = 0;
@@ -110,6 +121,10 @@ public class Board implements MouseListener {
     }
 
 
+    /**
+     * Updates GUI after move is made
+     * @param arr 2D array that represents the state of the game
+     */
     private void updateGUI(String[][] arr) {
         int count = 0;
         for (int i = arr.length - 1; i >= 0; i--) {
@@ -169,9 +184,7 @@ public class Board implements MouseListener {
                         ((JPanel) panel.getComponent(x)).remove(0);
                         ((JPanel) panel.getComponent(x)).add(new JLabel(new ImageIcon()));
                     }
-
                 }
-
 
                 count++;
             }
@@ -181,17 +194,15 @@ public class Board implements MouseListener {
     }
 
 
+
     private String[][] copyOf(String[][] arr) {
         String[][] temp = new String[arr.length][arr[0].length];
 
         for (int i = 0; i < arr.length; i++) {
-            for (int j = 0; j < arr[i].length; j++) {
-                temp[i][j] = arr[i][j];
-            }
-
+            System.arraycopy(arr[i], 0, temp[i], 0, arr[i].length);
         }
-        return temp;
 
+        return temp;
     }
 
 
@@ -205,67 +216,76 @@ public class Board implements MouseListener {
                 temp = copyOf(arr);
                 pos2 = new Point(i, j);
 
-                if (pieces.moveWhitePiece(pos1, pos2, temp)) {
+                if (Piece.moveWhitePiece(pos1, pos2, temp)) {
                     returns.add(pos2);
 
                 }
             }
         }
 
-
         return returns;
     }
 
+
+    private Color colorAt(Point p) {
+        int x = convertArrayToBoard(p);
+        if (p.y % 2 == 0) {
+            if (x % 2 == 0) {
+                return Color.darkGray;
+            } else {
+                return Color.white;
+            }
+        } else {
+            if (x % 2 == 0) {
+                return Color.white;
+            } else {
+                return Color.darkGray;
+            }
+        }
+
+    }
 
 
     Point pos1;
     Point pos2;
     ArrayList<Point> temp = new ArrayList<>();
+
     @Override
     public void mouseClicked(MouseEvent e) {
-
         int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
         int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
+        int j;
 
 
         if (pos1 == null) {
             pos1 = new Point(x - 1, y - 1);
-            System.out.println(board[pos1.x][pos1.y]);
             temp = validMoves(pos1, board);
 
+            if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'b') {
+                j = convertArrayToBoard(pos1);
+                panel.getComponent(j).setBackground(new Color(255, 255, 105));
+            }
 
-            for (int i = 0; i < temp.size(); i++) {
-                int k = convertArrayToBoard(temp.get(i));
 
-
-                panel.getComponent(k).setBackground(Color.yellow);
-
+            for (Point point : temp) {
+                int k = convertArrayToBoard(point);
+                panel.getComponent(k).setBackground(new Color(255, 255, 153));
             }
 
         } else {
 
-            for (int i = 0; i < temp.size(); i++) {
-                int k = convertArrayToBoard(temp.get(i));
-
-                if (temp.get(i).y % 2 == 0) {
-                    if (k % 2 == 0) {
-                        panel.getComponent(k).setBackground(Color.darkGray);
-                    } else {
-                        panel.getComponent(k).setBackground(Color.white);
-                    }
-                } else {
-                    if (k % 2 == 0) {
-                        panel.getComponent(k).setBackground(Color.white);
-                    } else {
-                        panel.getComponent(k).setBackground(Color.darkGray);
-                    }
-                }
+            for (Point value : temp) {
+                int k = convertArrayToBoard(value);
+                panel.getComponent(k).setBackground(colorAt(value));
             }
 
+
             pos2 = new Point(x - 1, y - 1);
+            j = convertArrayToBoard(pos1);
+            panel.getComponent(j).setBackground(colorAt(pos1));
             if (temp.contains(pos2)) {
-                pieces.moveWhitePiece(pos1, pos2, board);
-                pieces.drawBoard(board);
+                Piece.moveWhitePiece(pos1, pos2, board);
+                Piece.drawBoard(board);
                 updateGUI(board);
                 frame.setVisible(true);
                 pos1 = null;
@@ -274,43 +294,33 @@ public class Board implements MouseListener {
             } else {
 
                 if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
-                    pos1 = null;
+
                     if (pos1 == null) {
                         pos1 = pos2;
-                        System.out.println(board[pos1.x][pos1.y]);
                         temp = validMoves(pos1, board);
 
-                        for (int i = 0; i < temp.size(); i++) {
-                            int k = convertArrayToBoard(temp.get(i));
+                        if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'b') {
+                            j = convertArrayToBoard(pos1);
+                            panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                        }
 
-                            panel.getComponent(k).setBackground(Color.yellow);
+
+                        for (Point point : temp) {
+                            int k = convertArrayToBoard(point);
+                            panel.getComponent(k).setBackground(new Color(255, 255, 153));
                         }
 
                     } else {
 
-                        for (int i = 0; i < temp.size(); i++) {
-                            int k = convertArrayToBoard(temp.get(i));
-
-                            if (temp.get(i).y % 2 == 0) {
-                                if (k % 2 == 0) {
-                                    panel.getComponent(k).setBackground(Color.darkGray);
-                                } else {
-                                    panel.getComponent(k).setBackground(Color.white);
-                                }
-                            } else {
-                                if (k % 2 == 0) {
-                                    panel.getComponent(k).setBackground(Color.white);
-                                } else {
-                                    panel.getComponent(k).setBackground(Color.darkGray);
-                                }
-                            }
+                        for (Point point : temp) {
+                            int k = convertArrayToBoard(point);
+                            panel.getComponent(k).setBackground(colorAt(point));
                         }
 
                         pos2 = new Point(x - 1, y - 1);
                         if (temp.contains(pos2)) {
-                            pieces.moveWhitePiece(pos1, pos2, board);
-
-                            pieces.drawBoard(board);
+                            Piece.moveWhitePiece(pos1, pos2, board);
+                            Piece.drawBoard(board);
                             updateGUI(board);
                             frame.setVisible(true);
                             pos1 = null;
@@ -325,11 +335,6 @@ public class Board implements MouseListener {
 
         }
     }
-
-
-
-
-
 
 
     @Override
@@ -352,6 +357,8 @@ public class Board implements MouseListener {
     public void mouseExited(MouseEvent e) {
 
     }
+
+
 }
 
 

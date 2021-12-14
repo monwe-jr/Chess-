@@ -2,7 +2,7 @@ import java.awt.*;
 
 public class Chess {
 
-
+boolean gameOver = false;
 int turn = 0;
 
 Board board = new Board();
