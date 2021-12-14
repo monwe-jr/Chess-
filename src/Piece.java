@@ -20,20 +20,6 @@ public class Piece {
         setupBoard(board);
         drawBoard(board);
 
-        board[e][3]="wK";
-        Point point = new Point(e,4);
-        Point point2 = new Point (e,5);
-        moveWhitePiece(point,point2,board);
-        drawBoard(board);
-
-
-
-
-
-
-
-
-
     }
 
 

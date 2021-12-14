@@ -26,7 +26,6 @@ public class Board implements MouseListener {
     ImageIcon kingB = new ImageIcon("kingB.png");
 
 
-
     Board() {
 
         frame.setTitle("Chess");
@@ -39,8 +38,6 @@ public class Board implements MouseListener {
         frame.add(panel);
         frame.setDefaultCloseOperation(3);
         frame.setVisible(true);
-
-
 
 
     }
@@ -168,6 +165,9 @@ public class Board implements MouseListener {
                         ((JPanel) panel.getComponent(x)).remove(0);
                         ((JPanel) panel.getComponent(x)).add(new JLabel(kingB));
 
+                    } else {
+                        ((JPanel) panel.getComponent(x)).remove(0);
+                        ((JPanel) panel.getComponent(x)).add(new JLabel(new ImageIcon()));
                     }
 
                 }
@@ -178,76 +178,156 @@ public class Board implements MouseListener {
 
         }
 
+    }
+
+
+    private String[][] copyOf(String[][] arr) {
+        String[][] temp = new String[arr.length][arr[0].length];
+
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = 0; j < arr[i].length; j++) {
+                temp[i][j] = arr[i][j];
+            }
+
+        }
+        return temp;
 
     }
 
 
-    private ArrayList<Point> validMoves(Point pos1,String[][] arr) {
+    private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
         String[][] temp;
         ArrayList<Point> returns = new ArrayList<>();
         Point pos2;
 
-        for (int i = arr.length - 1; i >= 0; i--) {
+        for (int i = 0; i < arr.length; i++) {
             for (int j = 0; j < arr.length; j++) {
-                temp = Arrays.copyOf(arr,arr.length);
+                temp = copyOf(arr);
+                pos2 = new Point(i, j);
 
-
-                pos2 = new Point(j,i);
-
-                if(pieces.moveWhitePiece(pos1,pos2,temp)){
-                    pieces.drawBoard(temp);
+                if (pieces.moveWhitePiece(pos1, pos2, temp)) {
                     returns.add(pos2);
+
+                }
+            }
+        }
+
+
+        return returns;
+    }
+
+
+
+    Point pos1;
+    Point pos2;
+    ArrayList<Point> temp = new ArrayList<>();
+    @Override
+    public void mouseClicked(MouseEvent e) {
+
+        int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
+        int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
+
+
+        if (pos1 == null) {
+            pos1 = new Point(x - 1, y - 1);
+            System.out.println(board[pos1.x][pos1.y]);
+            temp = validMoves(pos1, board);
+
+
+            for (int i = 0; i < temp.size(); i++) {
+                int k = convertArrayToBoard(temp.get(i));
+
+
+                panel.getComponent(k).setBackground(Color.yellow);
+
+            }
+
+        } else {
+
+            for (int i = 0; i < temp.size(); i++) {
+                int k = convertArrayToBoard(temp.get(i));
+
+                if (temp.get(i).y % 2 == 0) {
+                    if (k % 2 == 0) {
+                        panel.getComponent(k).setBackground(Color.darkGray);
+                    } else {
+                        panel.getComponent(k).setBackground(Color.white);
+                    }
+                } else {
+                    if (k % 2 == 0) {
+                        panel.getComponent(k).setBackground(Color.white);
+                    } else {
+                        panel.getComponent(k).setBackground(Color.darkGray);
+                    }
+                }
+            }
+
+            pos2 = new Point(x - 1, y - 1);
+            if (temp.contains(pos2)) {
+                pieces.moveWhitePiece(pos1, pos2, board);
+                pieces.drawBoard(board);
+                updateGUI(board);
+                frame.setVisible(true);
+                pos1 = null;
+                pos2 = null;
+
+            } else {
+
+                if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
+                    pos1 = null;
+                    if (pos1 == null) {
+                        pos1 = pos2;
+                        System.out.println(board[pos1.x][pos1.y]);
+                        temp = validMoves(pos1, board);
+
+                        for (int i = 0; i < temp.size(); i++) {
+                            int k = convertArrayToBoard(temp.get(i));
+
+                            panel.getComponent(k).setBackground(Color.yellow);
+                        }
+
+                    } else {
+
+                        for (int i = 0; i < temp.size(); i++) {
+                            int k = convertArrayToBoard(temp.get(i));
+
+                            if (temp.get(i).y % 2 == 0) {
+                                if (k % 2 == 0) {
+                                    panel.getComponent(k).setBackground(Color.darkGray);
+                                } else {
+                                    panel.getComponent(k).setBackground(Color.white);
+                                }
+                            } else {
+                                if (k % 2 == 0) {
+                                    panel.getComponent(k).setBackground(Color.white);
+                                } else {
+                                    panel.getComponent(k).setBackground(Color.darkGray);
+                                }
+                            }
+                        }
+
+                        pos2 = new Point(x - 1, y - 1);
+                        if (temp.contains(pos2)) {
+                            pieces.moveWhitePiece(pos1, pos2, board);
+
+                            pieces.drawBoard(board);
+                            updateGUI(board);
+                            frame.setVisible(true);
+                            pos1 = null;
+                            pos2 = null;
+
+                        }
+
+                    }
                 }
 
             }
 
         }
-
-
-
-     return returns;
     }
 
 
 
-
-Point pos1;
-    Point pos2;
-
-    @Override
-    public void mouseClicked (MouseEvent e){
-        ArrayList<Point> temp = new ArrayList<>();
-        int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
-        int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
-
-        if(pos1 ==null) {
-            pos1 = new Point(x - 1, y - 1);
-            System.out.println(board[pos1.x][pos1.y]);
-          temp = validMoves(pos1,board);
-
-            for (int i = 0; i < temp.size(); i++) {
-                int k = convertArrayToBoard(temp.get(i));
-
-                panel.getComponent(k).setBackground(Color.yellow);
-
-
-            }
-
-
-        } else {
-            pos2 = new Point(x - 1, y - 1);
-
-        }
-
-
-
-
-
-
-
-        System.out.println(pos1 + "," + pos2);
-
-    }
 
 
 
