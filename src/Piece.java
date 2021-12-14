@@ -11,8 +11,12 @@ public class Piece {
     int g = 6;
     int h = 7;
 
+    public static String[][] board = new String[8][8];
+
+
+
     Piece (){
-        String[][] board = new String[8][8];
+
         setupBoard(board);
         drawBoard(board);
 
