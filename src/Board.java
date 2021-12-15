@@ -5,13 +5,19 @@ import java.awt.event.MouseListener;
 import java.util.ArrayList;
 
 
-public class Board implements MouseListener {
-    int t; //turn
-    boolean gO; //game over
+public class Board extends JFrame implements MouseListener {
+
+
+    Prompt prompter;
+    String mode;
+    int depth;
+    int turn; //turn
+    boolean gameOver; //game over
     Piece pieces = new Piece();
     String[][] board = pieces.board;  //2D array that represents the state of the game
-    JFrame frame = new JFrame();
+    JFrame frame = new JFrame("Chess");
     JPanel panel = new JPanel(new GridLayout(8, 8));  //initializes JPanel layout
+
 
     ImageIcon pawnW = new ImageIcon("pawnW.png");    //white pawn
     ImageIcon pawnB = new ImageIcon("pawnB.png");    //black pawn
@@ -29,14 +35,21 @@ public class Board implements MouseListener {
 
     Board() {
 
-        frame.setTitle("Chess");
-        createBoard();
-        updateGUI(board);
-        frame.addMouseListener(this);
-        frame.setSize(800, 800);
-        frame.add(panel);
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setVisible(true);
+        prompter= new Prompt();
+        mode =  prompter.mode;
+        depth = prompter.depth;
+
+
+//  if ( (mode.equals("AI") && depth !=0) || (mode.equals("Human") && depth ==0)  ) {
+//    createBoard();
+//    updateGUI(board);
+//    frame.addMouseListener(this);
+//    frame.setSize(800, 800);
+//    frame.add(panel);
+//    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+//    frame.setVisible(true);
+// }
+
 
 
     }
@@ -196,6 +209,7 @@ public class Board implements MouseListener {
 
 
 
+
     private String[][] copyOf(String[][] arr) {
         String[][] temp = new String[arr.length][arr[0].length];
 
@@ -205,6 +219,7 @@ public class Board implements MouseListener {
 
         return temp;
     }
+
 
 
     private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
@@ -228,6 +243,7 @@ public class Board implements MouseListener {
     }
 
 
+
     private Color colorAt(Point p) {
         int x = convertArrayToBoard(p);
         if (p.y % 2 == 0) {
@@ -247,12 +263,18 @@ public class Board implements MouseListener {
     }
 
 
+
+
+
+
+
     Point pos1;
     Point pos2;
     ArrayList<Point> temp = new ArrayList<>();
 
     @Override
     public void mouseClicked(MouseEvent e) {
+
         int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
         int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
         int j;
@@ -328,7 +350,6 @@ public class Board implements MouseListener {
                             frame.setVisible(true);
                             pos1 = null;
                             pos2 = null;
-
                         }
 
                     }
