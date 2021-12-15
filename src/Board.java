@@ -223,7 +223,7 @@ public class Board extends JFrame implements MouseListener {
         ArrayList<Point> returns = new ArrayList<>();
         Point pos2;
 
-        if((board[(int)pos1.getX()][(int)pos1.getY()].charAt(0)=='w')) {
+        if((board[pos1.x][pos1.y].charAt(0)=='w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
@@ -252,9 +252,30 @@ public class Board extends JFrame implements MouseListener {
         return returns;
     }
 
-   private void findKill(){
 
-   }
+    
+    private ArrayList<Point> findKill(Point pos1, ArrayList<Point> p) {
+        ArrayList<Point> returns = new ArrayList<>();
+
+        for (Point value : p) {
+            if((board[pos1.x][pos1.y].charAt(0)=='w')){
+                if((board[value.x][value.y].charAt(0)=='b')){
+                    returns.add(value);
+                }
+            }else{
+                if((board[value.x][value.y].charAt(0)=='w')){
+                    returns.add(value);
+                }
+
+            }
+
+
+        }
+
+
+return returns;
+    }
+
 
 
 
@@ -283,8 +304,8 @@ public class Board extends JFrame implements MouseListener {
 
     Point pos1;
     Point pos2;
-    Point pos1Temp;
     ArrayList<Point> temp = new ArrayList<>();
+    ArrayList<Point> killTemp = new ArrayList<>();
 
     @Override
     public void mouseClicked(MouseEvent e) {
@@ -298,17 +319,26 @@ public class Board extends JFrame implements MouseListener {
 
             if (pos1 == null) {
                 pos1 = new Point(x - 1, y - 1);
-                temp = validMoves(pos1, board);
+                if(board[pos1.x][pos2.y].charAt(0) =='w' ) {
+                    temp = validMoves(pos1, board);
+                    killTemp = findKill(pos1,temp);
 
-                if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'b') {
-                    j = convertArrayToBoard(pos1);
-                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                }
+                    if (board[pos1.x][pos1.y] != "  ") {
+                        j = convertArrayToBoard(pos1);
+                        panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                    }
+
+                    for (Point point : temp) {
+                        int k = convertArrayToBoard(point);
+                        panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                    }
+
+                    for (Point point : killTemp) {
+                        int k = convertArrayToBoard(point);
+                        panel.getComponent(k).setBackground(new Color(255, 51, 51));
+                    }
 
 
-                for (Point point : temp) {
-                    int k = convertArrayToBoard(point);
-                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
                 }
 
             } else {
@@ -327,7 +357,6 @@ public class Board extends JFrame implements MouseListener {
                     Piece.drawBoard(board);
                     updateGUI(board);
                     frame.setVisible(true);
-                    pos1Temp = pos1;
                     pos1 = null;
                     pos2 = null;
 
@@ -342,15 +371,26 @@ public class Board extends JFrame implements MouseListener {
                             pos1 = pos2;
                             temp = validMoves(pos1, board);
 
-                            if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                            }
+                            if(board[pos1.x][pos2.y].charAt(0) =='w' ) {
+                                temp = validMoves(pos1, board);
+                                killTemp = findKill(pos1,temp);
+
+                                if (board[pos1.x][pos1.y] != "  ") {
+                                    j = convertArrayToBoard(pos1);
+                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                                }
+
+                                for (Point point : temp) {
+                                    int k = convertArrayToBoard(point);
+                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                                }
+
+                                for (Point point : killTemp) {
+                                    int k = convertArrayToBoard(point);
+                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
+                                }
 
 
-                            for (Point point : temp) {
-                                int k = convertArrayToBoard(point);
-                                panel.getComponent(k).setBackground(new Color(255, 255, 153));
                             }
 
                         } else {
@@ -388,16 +428,24 @@ public class Board extends JFrame implements MouseListener {
             if (pos1 == null) {
                 pos1 = new Point(x - 1, y - 1);
                 temp = validMoves(pos1, board);
+                killTemp = findKill(pos1,temp);
 
-                if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'w') {
-                    j = convertArrayToBoard(pos1);
-                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                }
+                if (board[pos1.x][pos1.y].charAt(0) == 'b') {
+                    if (board[pos1.x][pos1.y] != "  ") {
+                        j = convertArrayToBoard(pos1);
+                        panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                    }
 
 
-                for (Point point : temp) {
-                    int k = convertArrayToBoard(point);
-                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                    for (Point point : temp) {
+                        int k = convertArrayToBoard(point);
+                        panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                    }
+
+                    for (Point point : killTemp) {
+                        int k = convertArrayToBoard(point);
+                        panel.getComponent(k).setBackground(new Color(255, 51, 51));
+                    }
                 }
 
             } else {
@@ -416,7 +464,6 @@ public class Board extends JFrame implements MouseListener {
                     Piece.drawBoard(board);
                     updateGUI(board);
                     frame.setVisible(true);
-                    pos1Temp = pos1;
                     pos1 = null;
                     pos2 = null;
 
@@ -430,16 +477,24 @@ public class Board extends JFrame implements MouseListener {
                         if (pos1 == null) {
                             pos1 = pos2;
                             temp = validMoves(pos1, board);
+                            killTemp = findKill(pos1,temp);
 
-                            if (board[pos1.x][pos1.y] != "  " && board[pos1.x][pos1.y].charAt(0) != 'e') {
-                                j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                            }
+                            if (board[pos1.x][pos1.y].charAt(0) == 'b') {
+                                if (board[pos1.x][pos1.y] != "  ") {
+                                    j = convertArrayToBoard(pos1);
+                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                                }
 
 
-                            for (Point point : temp) {
-                                int k = convertArrayToBoard(point);
-                                panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                                for (Point point : temp) {
+                                    int k = convertArrayToBoard(point);
+                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
+                                }
+
+                                for (Point point : killTemp) {
+                                    int k = convertArrayToBoard(point);
+                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
+                                }
                             }
 
                         } else {
