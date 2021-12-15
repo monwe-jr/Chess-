@@ -162,12 +162,410 @@ public class Piece {
 
         //Rook
         if (piece=="wR") {
-            //check if movement is in same spot
+            //check if movement is in same spot and if it is either exclusively vertical or horizontal
             if ((x1==x2 && y1==y2)&&!(y1==y2 || x1==x2)) {
                 System.out.println("ERROR 108: Invalid movement");
                 return false;
             }
+            //if movement is upwards
+            if (y2-y1 > 0 && x1==x2) {
+                //loop up each tile
+                for (int i=1; i+y1<8;i++) {
+                    //check for a blocking white piece
+                    if (board[x1][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 109: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 110: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is downwards
+            if (y2-y1 < 0 && x1==x2) {
+                //loop up each tile
+                for (int i=1; y1-i>-1;i++) {
+                    //check for a blocking white piece
+                    if (board[x1][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 109: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 110: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is left
+            if (x2-x1 < 0 && y1==y2) {
+                //loop up each tile
+                for (int i=1; x1-i>-1;i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1].charAt(0)=='w') {
+                        System.out.println("ERROR 109: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (x1-i == x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1].charAt(0)=='b') {
+                        System.out.println("ERROR 110: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is right
+            if (x2-x1 >  0 && y1==y2) {
+                //loop up each tile
+                for (int i=1; x1+i<8;i++) {
+                    //check for a blocking white piece
+                    if (board[x1+1][y1].charAt(0)=='w') {
+                        System.out.println("ERROR 109: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (x1+i == x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+1][y1].charAt(0)=='b') {
+                        System.out.println("ERROR 110: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            System.out.println("ERROR 111: Invalid movement");
+            return false;
         }
+
+        //Bishop
+        if (piece=="wB") {
+            //Error if movement is within same column or row
+            if (y1==y2 || x1==x2) {
+                System.out.println("ERROR 112: Invalid movement");
+                return false;
+            }
+            //up-right diagonal
+            if (y2-y1 > 0 && x2-x1 > 0) {
+                //loop up each tile
+                for (int i=1; (i+y1<8 && i+x1<8);i++) {
+                    //check for a blocking white piece
+                    if (board[x1+i][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 113: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2 && x1+i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+i][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 114: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //up-left diagonal
+            if (y2-y1 > 0 && x2-x1 < 0) {
+                //loop up each tile
+                for (int i=1; (i+y1<8 && x1-i>-1);i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 115: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2 && x1-i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 116: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //down-right diagonal
+            if (y2-y1 < 0 && x2-x1 > 0) {
+                //loop up each tile
+                for (int i=1; (y1-i>-1 && i+x1<8);i++) {
+                    //check for a blocking white piece
+                    if (board[x1+i][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 117: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2 && x1+i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+i][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 118: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //down-left diagonal
+            if (y2-y1 < 0 && x2-x1 < 0) {
+                //loop up each tile
+                for (int i=1; (y1-i>-1 && x1-i>-1);i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 119: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2 && x1-i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 120: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        //Queen
+        if (piece=="wQ") {
+            //if movement is upwards
+            if (y2-y1 > 0 && x1==x2) {
+                //loop up each tile
+                for (int i=1; i+y1<8;i++) {
+                    //check for a blocking white piece
+                    if (board[x1][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 121: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 122: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is downwards
+            if (y2-y1 < 0 && x1==x2) {
+                //loop up each tile
+                for (int i=1; y1-i>-1;i++) {
+                    //check for a blocking white piece
+                    if (board[x1][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 123: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 124: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is left
+            if (x2-x1 < 0 && y1==y2) {
+                //loop up each tile
+                for (int i=1; x1-i>-1;i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1].charAt(0)=='w') {
+                        System.out.println("ERROR 125: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (x1-i == x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1].charAt(0)=='b') {
+                        System.out.println("ERROR 126: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //if movement is right
+            if (x2-x1 >  0 && y1==y2) {
+                //loop up each tile
+                for (int i=1; x1+i<8;i++) {
+                    //check for a blocking white piece
+                    if (board[x1+1][y1].charAt(0)=='w') {
+                        System.out.println("ERROR 127: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (x1+i == x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+1][y1].charAt(0)=='b') {
+                        System.out.println("ERROR 128: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //up-right diagonal
+            if (y2-y1 > 0 && x2-x1 > 0) {
+                //loop up each tile
+                for (int i=1; (i+y1<8 && i+x1<8);i++) {
+                    //check for a blocking white piece
+                    if (board[x1+i][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 129: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2 && x1+i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+i][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 130: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //up-left diagonal
+            if (y2-y1 > 0 && x2-x1 < 0) {
+                //loop up each tile
+                for (int i=1; (i+y1<8 && x1-i>-1);i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1+i].charAt(0)=='w') {
+                        System.out.println("ERROR 131: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1+i == y2 && x1-i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1+i].charAt(0)=='b') {
+                        System.out.println("ERROR 132: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //down-right diagonal
+            if (y2-y1 < 0 && x2-x1 > 0) {
+                //loop up each tile
+                for (int i=1; (y1-i>-1 && i+x1<8);i++) {
+                    //check for a blocking white piece
+                    if (board[x1+i][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 133: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2 && x1+i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1+i][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 134: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+            //down-left diagonal
+            if (y2-y1 < 0 && x2-x1 < 0) {
+                //loop up each tile
+                for (int i=1; (y1-i>-1 && x1-i>-1);i++) {
+                    //check for a blocking white piece
+                    if (board[x1-i][y1-i].charAt(0)=='w') {
+                        System.out.println("ERROR 135: Invalid movement");
+                        return false;
+                    }
+                    //check for move condition
+                    if (y1-i == y2 && x1-i==x2) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        return true;
+                    }
+                    //check for blocking black piece
+                    if (board[x1-i][y1-i].charAt(0)=='b') {
+                        System.out.println("ERROR 136: Invalid movement");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        //Knight
+        if (piece == "wN") {
+            //upwards
+            if ((y2==y1+2 && (x1==x2-1 || x1==x2+1))&&!(board[x2][y2].charAt(0)=='w')) {
+                board[x2][y2]=piece;
+                board[x1][y1]="  ";
+                return true;
+            }
+            //downwards
+            if ((y2==y1-2 && (x1==x2-1 || x1==x2+1))&&!(board[x2][y2].charAt(0)=='w')) {
+                board[x2][y2]=piece;
+                board[x1][y1]="  ";
+                return true;
+            }
+            //right
+            if ((x2==x1+2 && (y1==y2-1 || y1==y2+1))&&!(board[x2][y2].charAt(0)=='w')) {
+                board[x2][y2]=piece;
+                board[x1][y1]="  ";
+                return true;
+            }
+            //left
+            if ((x2==x1-2 && (y1==y2-1 || y1==y2+1))&&!(board[x2][y2].charAt(0)=='w')) {
+                board[x2][y2]=piece;
+                board[x1][y1]="  ";
+                return true;
+            }
+            System.out.println("ERROR 137: Invalid movement");
+            return false;
+        }
+
         System.out.println("Unknown Error: ???");
         return false;
     }
