@@ -253,7 +253,7 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
-    
+
     private ArrayList<Point> findKill(Point pos1, ArrayList<Point> p) {
         ArrayList<Point> returns = new ArrayList<>();
 
@@ -278,11 +278,6 @@ return returns;
 
 
 
-
-
-
-
-
     private Color colorAt(Point p) {
         int x = convertArrayToBoard(p);
         if (p.y % 2 == 0) {
@@ -298,8 +293,8 @@ return returns;
                 return Color.darkGray;
             }
         }
-
     }
+
 
 
     Point pos1;
@@ -313,6 +308,7 @@ return returns;
         int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
         int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
         int j;
+
 
 
         if (turn == 0 ) {
