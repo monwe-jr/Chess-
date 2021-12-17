@@ -119,7 +119,7 @@ public class Chess {
             }
         };
 
-        gameMode = new JLabel("mode selected: ", SwingConstants.CENTER);
+        gameMode = new JLabel("Mode selected: ", SwingConstants.CENTER);
         button1 = new JButton("Human vs AI");
         button2 = new JButton("Human vs Human");
         button1.addActionListener(listener1);

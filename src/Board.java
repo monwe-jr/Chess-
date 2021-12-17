@@ -11,6 +11,7 @@ public class Board extends JFrame implements MouseListener {
     boolean input;
     public String mode;
     public int depth;
+    AI bot;
     Piece pieces = new Piece();
     Random num = new Random();
     int turn; //turn
@@ -60,6 +61,7 @@ public class Board extends JFrame implements MouseListener {
         this.mode = m;
         this.depth = d;
 
+        bot = new AI(d);
         gameOver = false;
         input = true;
         turn = 0;
@@ -109,6 +111,29 @@ public class Board extends JFrame implements MouseListener {
             c = c + 1;
             c = c % 2;
         }
+    }
+
+    /**
+     * Converts board coordinates to array coordinates
+     * @param x Board Coordinate
+     * @return
+     */
+    private Point convertBoardToArray(int x){
+        int pos = 0;
+        Point p = null;
+
+        for (int i = board.length-1; i >=0; i--) {
+            for (int j = 0; j <board[i].length ; j++) {
+
+                if (pos == x){
+                    p.setLocation(j,i);
+                }
+
+                pos++;
+            }
+        }
+
+        return p;
     }
 
 
@@ -223,15 +248,15 @@ public class Board extends JFrame implements MouseListener {
 
 
     private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
-        String[][] temp;
         ArrayList<Point> returns = new ArrayList<>();
+        String[][] temp;
         Point pos2;
 
         if ((board[pos1.x][pos1.y].charAt(0) == 'w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
-                    pos2 = new Point(i, j);
+                    pos2 = new Point(j, i);
 
                     if (Piece.moveWhitePiece(pos1, pos2, temp)) {
                         returns.add(pos2);
@@ -243,7 +268,7 @@ public class Board extends JFrame implements MouseListener {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
-                    pos2 = new Point(i, j);
+                    pos2 = new Point(j, i);
 
                     if (Piece.moveBlackPiece(pos1, pos2, temp)) {
                         returns.add(pos2);
@@ -901,15 +926,14 @@ public class Board extends JFrame implements MouseListener {
                     } else { ////////////////////////////black move
 
                         if (pos1 == null) {                                       //black initial selection
-                            pos1 = new Point(x - 1, y - 1);
+
+                            pos1 = convertBoardToArray(bot.minimax(board,depth,true)[0]);
                             temp = validMoves(pos1, board);
                             killTemp = findKill(pos1, temp);
 
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                if (board[pos1.x][pos1.y] != "  ") {
+
                                     j = convertArrayToBoard(pos1);
                                     panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                                }
 
 
                                 for (Point point : temp) {
@@ -922,9 +946,6 @@ public class Board extends JFrame implements MouseListener {
                                     panel.getComponent(k).setBackground(new Color(255, 51, 51));
                                 }
 
-                            } else {
-                                pos1 = null;
-                            }
 
 
                         } else {                                                  //black selected move
@@ -934,8 +955,8 @@ public class Board extends JFrame implements MouseListener {
                                 panel.getComponent(k).setBackground(colorAt(value));
                             }
 
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {////////////////////////////////////////////////////////
-                                pos2 = new Point(x - 1, y - 1);
+                            ////////////////////////////////////////////////////////
+                                pos2 = convertBoardToArray(bot.minimax(board,depth,true)[1]);
                                 j = convertArrayToBoard(pos1);
                                 panel.getComponent(j).setBackground(colorAt(pos1));
                                 if (temp.contains(pos2)) {
@@ -956,91 +977,21 @@ public class Board extends JFrame implements MouseListener {
                                     turn = turn % 2;
 
 
-                                } else {                             //if black changes initial section
-
-                                    if (board[pos2.x][pos2.y].charAt(0) == 'b' && !temp.contains(pos2)) {
-                                        pos1 = null;
-                                        if (pos1 == null) {
-                                            pos1 = pos2;
-                                            temp = validMoves(pos1, board);
-                                            killTemp = findKill(pos1, temp);
-
-
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                                if (board[pos1.x][pos1.y] != "  ") {
-                                                    j = convertArrayToBoard(pos1);
-                                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                                                }
-
-
-                                                for (Point point : temp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                                }
-
-                                                for (Point point : killTemp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-
-
-                                        } else {                                     //selected move after black initial selection is changed
-
-                                            for (Point point : temp) {
-                                                int k = convertArrayToBoard(point);
-                                                panel.getComponent(k).setBackground(colorAt(point));
-                                            }
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                                pos2 = new Point(x - 1, y - 1);
-                                                j = convertArrayToBoard(pos1);
-                                                panel.getComponent(j).setBackground(colorAt(pos1));
-                                                if (temp.contains(pos2)) {
-                                                    Piece.moveBlackPiece(pos1, pos2, board);
-                                                    Piece.drawBoard(board);
-                                                    updateGUI(board);
-                                                    frame.setVisible(true);
-
-                                                    //promotion
-                                                    if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                                        promotionAI(pos2);
-                                                    }
-
-                                                    pos1 = null;
-                                                    pos2 = null;
-                                                    turn += 1;
-                                                    turn = turn % 2;
-
-
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-                                        }
-
-                                    }
-
                                 }
 
-                            } else {
-                                pos1 = null; ///////////////////////////////////////////////////////////
                             }
 
 
-                        }
+                        }//end of black move for AI version
 
-                    }//end of black move for AI version
+                    }//////////// /////////////////////////////////////////////////////////////////////////////end of AI version
 
-                }//////////// /////////////////////////////////////////////////////////////////////////////end of AI version
+                }//end of input
 
-            }//end of input
+            }// end of game over
 
-        }// end of game over
-    }
+        }
+
 
 
     @Override
