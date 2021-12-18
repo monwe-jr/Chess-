@@ -21,7 +21,9 @@ public class Chess {
         prompt();
     }
 
-
+    /**
+     * Prompt menu for chess game
+     */
     private void prompt() {
         frame.setSize(600, 600);
         ActionListener listener1 = new ActionListener() {
@@ -29,15 +31,15 @@ public class Chess {
             @Override
             public void actionPerformed(ActionEvent e) {
 
-
+                //Mode selection
                 if (e.getSource() == button1) {
                     mode = "AI";
-                    gameMode.setText("mode selected: Human vs " + mode);
+                    gameMode.setText("Mode Selected: Human vs " + mode);
                     button1.removeActionListener(this);
                     button2.removeActionListener(this);
                 } else {
                     mode = "Human";
-                    gameMode.setText("mode selected: Human vs " + mode);
+                    gameMode.setText("Mode Selected: Human vs " + mode);
                     button1.removeActionListener(this);
                     button2.removeActionListener(this);
 
@@ -55,6 +57,7 @@ public class Chess {
                 }
 
 
+                //Difficulty selection if mode is Human vs AI
                 if (mode.equals("AI")) {
                     ActionListener listener2 = new ActionListener() {
                         @Override
@@ -70,11 +73,11 @@ public class Chess {
 
 
                             if (depth == 1) {
-                                gameMode.setText("Difficulty selected: " + "Easy");
+                                gameMode.setText("Difficulty Selected: " + "Easy");
                             } else if (depth == 2) {
-                                gameMode.setText("Difficulty selected: " + "Normal");
+                                gameMode.setText("Difficulty Selected: " + "Normal");
                             } else if (depth == 3) {
-                                gameMode.setText("Difficulty selected: " + "Hard");
+                                gameMode.setText("Difficulty Selected: " + "Hard");
                             }
 
 
@@ -119,7 +122,7 @@ public class Chess {
             }
         };
 
-        gameMode = new JLabel("Mode selected: ", SwingConstants.CENTER);
+        gameMode = new JLabel("Mode Selected: ", SwingConstants.CENTER);
         button1 = new JButton("Human vs AI");
         button2 = new JButton("Human vs Human");
         button1.addActionListener(listener1);

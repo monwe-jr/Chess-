@@ -8,12 +8,12 @@ import java.util.Random;
 
 
 public class Board extends JFrame implements MouseListener {
-    boolean input;
-    public String mode;
-    public int depth;
     AI bot;
     Piece pieces = new Piece();
     Random num = new Random();
+    boolean input; //used to disable user input
+    public String mode;  //mode of game
+    public int depth;  //minimax depth
     int turn; //turn
     boolean gameOver; //game over
     String[][] board = pieces.board;  //2D array that represents the state of the game
@@ -61,7 +61,7 @@ public class Board extends JFrame implements MouseListener {
         this.mode = m;
         this.depth = d;
 
-        bot = new AI(d);
+//        bot = new AI(d);
         gameOver = false;
         input = true;
         turn = 0;
@@ -81,8 +81,12 @@ public class Board extends JFrame implements MouseListener {
     }//constructor for human vs AI
 
 
+
+
+
+
     /**
-     * creates initial grid
+     * Creates initial grid
      */
     private void createBoard() {
         int c = 0;
@@ -116,7 +120,6 @@ public class Board extends JFrame implements MouseListener {
     /**
      * Converts board coordinates to array coordinates
      * @param x Board Coordinate
-     * @return
      */
     private Point convertBoardToArray(int x){
         int pos = 0;
@@ -236,6 +239,9 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+    /**
+     * Returns a copy of arr
+     */
     private String[][] copyOf(String[][] arr) {
         String[][] temp = new String[arr.length][arr[0].length];
 
@@ -247,6 +253,11 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+    /**
+     * Returns an array of potential moves of pos1
+     * @param pos1 Initial position
+     * @param arr 2D array representation of board
+     */
     private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
         ArrayList<Point> returns = new ArrayList<>();
         String[][] temp;
@@ -282,6 +293,11 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+    /**
+     * Returns an ArrayList of kills the pieces at pos1 can make
+      * @param pos1 Initial position
+     * @param p ArrayList of potential moves
+     */
     private ArrayList<Point> findKill(Point pos1, ArrayList<Point> p) {
         ArrayList<Point> returns = new ArrayList<>();
 
@@ -303,7 +319,9 @@ public class Board extends JFrame implements MouseListener {
         return returns;
     }
 
-
+    /**
+     * returns the original color of position p
+     */
     private Color colorAt(Point p) {
         int x = convertArrayToBoard(p);
         if (p.y % 2 == 0) {
@@ -322,6 +340,9 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+    /**
+     * This method implements pawn promotion for the human player
+     */
     private void promotion(Point p) {
         input = false;
 
@@ -332,8 +353,7 @@ public class Board extends JFrame implements MouseListener {
         JButton button4 = new JButton();
         int x = convertArrayToBoard(p);
 
-        if (p.y == 7) {
-
+        if (p.y == 7) {   //if a white pawn is at the end of the board
             button1.setIcon(rookW);
             button2.setIcon(horseW);
             button3.setIcon(bishopW);
@@ -389,7 +409,7 @@ public class Board extends JFrame implements MouseListener {
             button3.addActionListener(listener);
             button4.addActionListener(listener);
 
-        } else {
+        } else {  //if a white pawn is at the end of the board
 
             button1.setIcon(rookB);
             button2.setIcon(horseB);
@@ -460,6 +480,9 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+    /**
+     *  This method implements pawn promotion for the AI player
+     */
     private void promotionAI(Point p) {
         int random = num.nextInt(2);
         input = false;
@@ -516,17 +539,19 @@ public class Board extends JFrame implements MouseListener {
     @SuppressWarnings({"StringEquality", "ConstantConditions"})
     @Override
     public void mouseClicked(MouseEvent e) {
-        int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;
-        int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;
-        int j;
+        int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;        //column of clicked
+        int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;   //row of clicked
+        int j; // location of clicked converted to board coordinates
 
 
         if (!gameOver) {
             if (input) {
+                //Human vs Human
                 if (mode == "Human") {
                     if (turn == 0) {
 
-                        if (pos1 == null) {                            //white initial selection
+                        //white initial selection
+                        if (pos1 == null) {
 
                             pos1 = new Point(x - 1, y - 1);
                             temp = validMoves(pos1, board);
@@ -553,8 +578,9 @@ public class Board extends JFrame implements MouseListener {
                             }
 
 
-                        } else {                   //white selected move
+                        } else {
 
+                            //white selected move
                             for (Point value : temp) {
                                 int k = convertArrayToBoard(value);
                                 panel.getComponent(k).setBackground(colorAt(value));
@@ -570,7 +596,7 @@ public class Board extends JFrame implements MouseListener {
                                     updateGUI(board);
                                     frame.setVisible(true);
 
-                                    //promotion
+                                    //pawn promotion
                                     if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                                         promotion(pos2);
                                     }
@@ -580,8 +606,9 @@ public class Board extends JFrame implements MouseListener {
                                     turn += 1;
                                     turn = turn % 2;
 
-                                } else {                           //if white changes initial section
+                                } else {
 
+                                    //if white changes initial section
                                     if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
                                         pos1 = null;
                                         if (pos1 == null) {
@@ -609,13 +636,14 @@ public class Board extends JFrame implements MouseListener {
                                                 pos1 = null;
                                             }
 
-                                        } else {                    //selected move after white initial selection is changed
+                                        } else {
 
+                                            //selected move after white initial selection is changed
                                             for (Point point : temp) {
                                                 int k = convertArrayToBoard(point);
                                                 panel.getComponent(k).setBackground(colorAt(point));
                                             }
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {//////////////////////////////////////////////////////////////////////////////////
+                                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {
                                                 pos2 = new Point(x - 1, y - 1);
                                                 j = convertArrayToBoard(pos1);
                                                 panel.getComponent(j).setBackground(colorAt(pos1));
@@ -625,7 +653,7 @@ public class Board extends JFrame implements MouseListener {
                                                     updateGUI(board);
                                                     frame.setVisible(true);
 
-                                                    //promotion
+                                                    //pawn promotion
                                                     if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                                                         promotion(pos2);
                                                     }
@@ -655,7 +683,8 @@ public class Board extends JFrame implements MouseListener {
 
                     } else { ////////////////////////////black move
 
-                        if (pos1 == null) {                                       //black initial selection
+                        //black initial selection
+                        if (pos1 == null) {
                             pos1 = new Point(x - 1, y - 1);
                             temp = validMoves(pos1, board);
                             killTemp = findKill(pos1, temp);
@@ -682,14 +711,15 @@ public class Board extends JFrame implements MouseListener {
                             }
 
 
-                        } else {                                                  //black selected move
+                        } else {
 
+                            //black selected move
                             for (Point value : temp) {
                                 int k = convertArrayToBoard(value);
                                 panel.getComponent(k).setBackground(colorAt(value));
                             }
 
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {////////////////////////////////////////////////////////
+                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
                                 pos2 = new Point(x - 1, y - 1);
                                 j = convertArrayToBoard(pos1);
                                 panel.getComponent(j).setBackground(colorAt(pos1));
@@ -711,8 +741,9 @@ public class Board extends JFrame implements MouseListener {
                                     turn = turn % 2;
 
 
-                                } else {                             //if black changes initial section
+                                } else {
 
+                                    //if black changes initial section
                                     if (board[pos2.x][pos2.y].charAt(0) == 'b' && !temp.contains(pos2)) {
                                         pos1 = null;
                                         if (pos1 == null) {
@@ -743,8 +774,9 @@ public class Board extends JFrame implements MouseListener {
                                             }
 
 
-                                        } else {                                     //selected move after black initial selection is changed
+                                        } else {
 
+                                            //selected move after black initial selection is changed
                                             for (Point point : temp) {
                                                 int k = convertArrayToBoard(point);
                                                 panel.getComponent(k).setBackground(colorAt(point));
@@ -782,7 +814,7 @@ public class Board extends JFrame implements MouseListener {
                                 }
 
                             } else {
-                                pos1 = null; ///////////////////////////////////////////////////////////
+                                pos1 = null;
                             }
 
 
@@ -790,8 +822,8 @@ public class Board extends JFrame implements MouseListener {
 
                     }
 
-                } //////////// /////////////////////////////////////////////////////////////////////////////end of human version
-                else {
+                } else { //end of human version beginning of Human vs AI
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     if (turn == 0) {
 

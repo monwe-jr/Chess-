@@ -24,13 +24,19 @@ public class AI {
     }
 
 
-    private int score(String s, String[][] arr) {
+    /**
+     * Scores the state of the board
+     * @param c score
+     * @param arr board that will be scored
+     * @return
+     */
+    private int score(char c, String[][] arr) {
         int score = 0;
         for (int i = arr.length - 1; i >= 0; i--) {
             for (int j = 0; j < arr.length; j++) {
                 Point p = new Point(j, i);
 
-                if (s == "w") {
+                if (c == 'w') {
                     if (arr[p.x][p.y] == "wP") {
                         score += 1;
                     } else if (arr[p.x][p.y] == "wN") {
@@ -72,14 +78,15 @@ public class AI {
         return score;
     }
 
-
-    private int evaluation(String s1, String s2, String[][] arr) {
-        return (score(s1, arr) - score(s2, arr));
+//evaluates the score of the AI
+    private int evaluation(char c1, char c2, String[][] arr) {
+        return (score(c1, arr) - score(c2, arr));
     }
 
 
-    private boolean terminalTest(Color c) {
-        if (checkmate(white) || draw()) {
+    //Terminal test of minimax
+    private boolean terminalTest(String[][] arr,char c) {
+        if (Piece.checkmate(arr,c) || Piece.draw(arr)) {
             return true;
         }
 
@@ -95,12 +102,12 @@ public class AI {
         int selectedPos1 = 0;
         int selectedPos2 = 0;
 
-        if (d == 0 || terminalTest(white)) {
-            if (terminalTest(white)) {
-                if (piece.checkmate(white)) {
+        if (d == 0 || terminalTest(arr,'w')) {
+            if (terminalTest(arr,'w')) {
+                if (Piece.checkmate(arr,'w')) {
                     returns[2] = Integer.MAX_VALUE;
                     return returns;
-                } else if (piece.checkmate(black)) {
+                } else if (Piece.checkmate(arr,'b')) {
                     returns[2] = Integer.MIN_VALUE;
                     return returns;
                 } else {
@@ -110,18 +117,18 @@ public class AI {
 
                 }
             } else {
-                returns[2] = evaluation("w", "b", arr);
+                returns[2] = evaluation('b', 'w', arr);
             }
         }
 
         if (maximizing) {
             value = Integer.MIN_VALUE;
-            moves.getMoves("w");
+            moves.getMoves('w');
             ArrayList<String> pieces = moves.getPieces();
             ArrayList<Point> pos1 = moves.getPos1();
             ArrayList<Point[]> pos2 = moves.getPos2();
 
-            for (int i = 0; i < pieces.size(); i++) {
+            for (int i = 0; i < pos1.size(); i++) {
                 Point[] positions = pos2.get(i);
 
                 for (int j = 0; j < positions.length; j++) {
@@ -149,7 +156,7 @@ public class AI {
 
         } else {
             value = Integer.MAX_VALUE;
-            moves.getMoves("black");
+            moves.getMoves('b');
             ArrayList<String> pieces = moves.getPieces();
             ArrayList<Point> pos1 = moves.getPos1();
             ArrayList<Point[]> pos2 = moves.getPos2();
