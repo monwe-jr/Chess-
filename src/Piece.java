@@ -1,4 +1,5 @@
 import java.awt.*;
+import java.util.ArrayList;
 
 public class Piece {
     //These global variables represent the row values of the board, to be used throughout the code
@@ -11,6 +12,7 @@ public class Piece {
     int g = 6;
     int h = 7;
 
+
     public static String[][] board = new String[8][8];
 
 
@@ -20,11 +22,12 @@ public class Piece {
         setupBoard(board);
         drawBoard(board);
 
+
     }
 
 
     /**
-     * sets up the starting state of a board
+     * Sets up the starting state of a board
      * @param board the board to be set up
      */
     private void setupBoard(String[][] board) {
@@ -80,12 +83,11 @@ public class Piece {
     }
 
     /**
-     * Method to initiate piece movement
+     * Performs white piece movement
      * @param pos1 position of pieces that needs to be moved
      * @param pos2 position
      * @param board board where movement takes place
      */
-
     static public boolean moveWhitePiece(Point pos1, Point pos2, String[][]board) {
         int x1 = (int)pos1.x;
         int x2 = (int)pos2.x;
@@ -97,13 +99,15 @@ public class Piece {
             System.out.println("SELECTION ERROR: White piece was not chosen");
             return false;
         }
+        //Look for self-check
+        if (moveCheck(board,x1,y1,x2,y2,'w')) return false;
 
         //move a Pawn
         if (piece == "wP") {
             //if the movement is within same column
             if ( x1 == x2) {
                 //if the movement is within valid range (can only move 2 squares if its on second row)
-                if ( y2-y1 == 1 || (y2-y1 == 2 && y1 == 1)) {
+                if ( y2-y1 == 1 || (y2-y1 == 2 && y1 == 1 && board[x1][y1+1]=="  ")) {
                     //if the space is empty
                     if (board[x2][y2]=="  ") {
                         board[x2][y2]=piece;
@@ -570,6 +574,12 @@ public class Piece {
         return false;
     }
 
+    /**
+     * Performs black piece movement
+     * @param pos1 position of pieces that needs to be moved
+     * @param pos2 position
+     * @param board board where movement takes place
+     */
     static public boolean moveBlackPiece(Point pos1, Point pos2, String[][]board) {
         int x1 = (int)pos1.x;
         int x2 = (int)pos2.x;
@@ -581,18 +591,19 @@ public class Piece {
             System.out.println("SELECTION ERROR: Black piece was not chosen");
             return false;
         }
+        //If this move would cause a self-check
+        if (moveCheck(board,x1,y1,x2,y2,'b')) return false;
 
         //move a Pawn
         if (piece == "bP") {
             //if the movement is within same column
             if ( x1 == x2) {
                 //if the movement is within valid range (can only move 2 squares if its on second row)
-                if ( y2-y1 == -1 || (y2-y1 == -2 && y1 == 6)) {
+                if ( y2-y1 == -1 || (y2-y1 == -2 && y1 == 6  && board[x1][y1-1]=="  ")) {
                     //if the space is empty
                     if (board[x2][y2]=="  ") {
                         board[x2][y2]=piece;
                         board[x1][y1]="  ";
-
                         return true;
                     } else {
                         System.out.println("ERROR 100: Invalid movement");
@@ -615,7 +626,7 @@ public class Piece {
                 }
             }
         }
-        
+
         //move the King
         if (piece == "bK") {
             //check if movement is to same spot
@@ -1034,6 +1045,7 @@ public class Piece {
             if ((x2==x1+2 && (y1==y2-1 || y1==y2+1))&&!(board[x2][y2].charAt(0)=='b')) {
                 board[x2][y2]=piece;
                 board[x1][y1]="  ";
+                check(board,'w');
                 return true;
             }
             //left
@@ -1050,6 +1062,282 @@ public class Piece {
         return false;
     }
 
+    /**
+     * Checks to see a player is under check
+     * @param board the board to check
+     * @param colour the colour of the player
+     * @return true if colour player is under check
+     */
+    static public boolean check(String[][] board, char colour) {
+        //Setting up string of enemy pieces, based on received colour paramater
+        String king = new StringBuilder().append(colour).append("K").toString();
+        char opposite;
+        if (colour=='w') {
+            opposite = 'b';
+        } else {
+            opposite = 'w';
+        }
+        String knight = new StringBuilder().append(opposite).append("N").toString();
+        String queen = new StringBuilder().append(opposite).append("Q").toString();
+        String rook = new StringBuilder().append(opposite).append("R").toString();
+        String bishop = new StringBuilder().append(opposite).append("B").toString();
+        String pawn = new StringBuilder().append(opposite).append("P").toString();
+        //Setting up x and y which will hold king's location. -1 set for later break condition.
+        int x=0;
+        int y=0;
+
+
+        //look for king, place coordinates in x and y
+        for (int i=0; i<8; i++) {
+            for (int j=0; j<8; j++) {
+                if (king.equals(board[i][j])) {
+                    x=i;
+                    y=j;
+                    break;
+                }
+            }
+        }
+
+        //This block checks for checks from enemy pawns
+        //left
+        if (x-1>-1) {
+            if ((colour=='w')&&(y+1<8)&&(board[x-1][y+1].equals(pawn)) ) {
+                return true;
+            }
+            if ((colour=='b')&&(y-1>-1)&&(board[x-1][y-1].equals(pawn)) ) {
+                return true;
+            }
+        }
+        //right
+        if (x+1<8) {
+            if ((colour=='w')&&(y+1<8)&&(board[x+1][y+1].equals(pawn)) ) {
+                return true;
+            }
+            if ((colour=='b')&&(y-1>-1)&&(board[x+1][y-1].equals(pawn)) ) {
+                return true;
+            }
+        }
+
+        //This block looks for checks from enemy knights
+        //check upwards for knights
+        if (y+2<8) {
+            //check up-left
+            if ((x-1>-1)&&(board[x-1][y+2].equals(knight))) {
+                return true;
+            }
+            //check up-right
+            if ((x+1<8)&&(board[x+1][y+2].equals(knight))) {
+                return true;
+            }
+        }
+        //check downwards for knights
+        if (y-2>-1) {
+            //check up-left
+            if ((x-1>-1)&&(board[x-1][y-2].equals(knight))) {
+                return true;
+            }
+            //check up-right
+            if ((x+1<8)&&(board[x+1][y-2].equals(knight))) {
+                return true;
+            }
+        }
+        //check left for knights
+        if (x+2<8) {
+            //check left-up
+            if ((y-1>-1)&&(board[x+2][y-1].equals(knight))) {
+                return true;
+            }
+            //checks left-down
+            if ((y+1<8)&&(board[x+2][y+1].equals(knight))) {
+                return true;
+            }
+        }
+        //check right for knights
+        if (x-2>-1) {
+            //check left-up
+            if ((y-1>-1)&&(board[x-2][y-1].equals(knight))) {
+                return true;
+            }
+            //checks left-down
+            if ((y+1<8)&&(board[x-2][y+1].equals(knight))) {
+                return true;
+            }
+        }
+
+        //Horizontal checks for queen and rooks
+        //Left
+        for (int i=1; x-i>-1; i++) {
+            if (board[x-i][y].equals(queen) || board[x-i][y].equals(rook)) {
+                return true;
+            }
+            //break if blocked by own colour
+            if (board[x-i][y].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Right
+        for (int i=1; x+i<8; i++) {
+            if (board[x+i][y].equals(queen) || board[x+i][y].equals(rook)) {
+                return true;
+            }
+            //break if blocked by own colour
+            if (board[x+i][y].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Upwards
+        for (int i=1; y+i<8; i++) {
+            if (board[x][y+i].equals(queen) || board[x][y+i].equals(rook)) {
+                return true;
+            }
+            //break if blocked by own colour
+            if (board[x][y+i].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Downwards
+        for (int i=1; y-i>-1; i++) {
+            if (board[x][y-i].equals(queen) || board[x][y-i].equals(rook)) {
+                return true;
+            }
+            //break if blocked by own colour
+            if (board[x][y-i].charAt(0)==colour) {
+                break;
+            }
+        }
+
+        //Diagonal checks for bishops and queen
+        //Up-right
+        for (int i=1; y+i<8 && x+i<8; i++) {
+            if (board[x+i][y+i].equals(bishop) || board[x+i][y+i].equals(queen)) {
+                return true;
+            }
+            if (board[x+i][y+i].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Up-left
+        for (int i=1; y+i<8 && x-i>-1; i++) {
+            if (board[x-i][y+i].equals(bishop) || board[x-i][y+i].equals(queen)) {
+                return true;
+            }
+            if (board[x-i][y+i].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Down-right
+        for (int i=1; y-i>-1 && x+i<8; i++) {
+            if (board[x+i][y-i].equals(bishop) || board[x+i][y-i].equals(queen)) {
+                return true;
+            }
+            if (board[x+i][y-i].charAt(0)==colour) {
+                break;
+            }
+        }
+        //Down-left
+        for (int i=1; y-i>-1 && x-i>-1; i++) {
+            if (board[x-i][y-i].equals(bishop) || board[x-i][y-i].equals(queen)) {
+                return true;
+            }
+            if (board[x-i][y-i].charAt(0)==colour) {
+                break;
+            }
+        }
+
+        //no checks
+        return false;
+    }
+
+    /**
+     * this function simulates a move and looks to see if it results in a self-check, returns true if so
+     * @param board the board to look at
+     * @param x1 x point of the piece to move
+     * @param y1 y point of the piece to move
+     * @param x2 x point of the square to move to
+     * @param y2 y point of the square to move to
+     * @param colour the colour of the moving piece
+     * @return true if the move will cause a check
+     */
+    static private boolean moveCheck (String[][] board, int x1, int y1, int x2, int y2,char colour) {
+        String[][] copy = new String[8][8];
+        for (int i=0; i<8; i++) {
+            System.arraycopy(board[i],0,copy[i],0,8);
+        }
+
+        copy[x2][y2]=copy[x1][y1];
+        copy[x1][y1]="  ";
+        if (check(copy,colour)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * checkmate function
+     * @param board the board to look at
+     * @param colour the colour to check for
+     * @return true if the colour is under checkmate
+     */
+    static public boolean checkmate (String[][] board,char colour) {
+        String[][]temp;
+        Point pos1;
+        Point pos2;
+        //First two layers to loop, to find pieces
+        for (int i=0; i<8; i++) {
+            for (int j=0; j<8; j++) {
+                if (board[i][j].charAt(0)==colour) {
+                    pos1 = new Point(i,j);
+
+                    //second pair of loop layers look for potential moves
+                    for (int k=0; k<8; k++) {
+                        for (int l=0; l<8;l++) {
+                            pos2 = new Point(k,l);
+                            temp = boardCopy(board);
+                            //checks if this is a valid move
+                            if (moveWhitePiece(pos1,pos2,temp)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        //if no valid moves are found
+        return true;
+    }
+
+    /**
+     * creates a deep copy of a 2d array and returns
+     * @param board the board to copy
+     * @return the copy
+     */
+    static private String[][] boardCopy(String[][]board) {
+        String[][] copy = new String[8][8];
+        for (int i=0; i<8; i++) {
+            System.arraycopy(board[i],0,copy[i],0,8);
+        }
+
+        return copy;
+    }
+
+    /**
+     * checks to see if there is a draw
+     * @param board the board to look at
+     * @return true if there is a draw
+     */
+    static public boolean draw (String[][]board) {
+        for (int i=0; i<8; i++) {
+            for (int j=0; j<8; j++) {
+                if (!(board[i][j].charAt(1)=='K') && !(board[i][j].charAt(1)==' ')) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 
 
 }
+
