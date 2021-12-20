@@ -56,14 +56,15 @@ public class AI {
 
                 if (board[i][j] == "wP") value -= 100;
                 if (board[i][j] == "bP") value += 100;
-                if (board[i][j] == "wN") value += 320;
-                if (board[i][j] == "bN") value -= 320;
-                if (board[i][j] == "wB") value += 330;
-                if (board[i][j] == "bB") value -= 330;
-                if (board[i][j] == "wQ") value += 900;
-                if (board[i][j] == "bQ") value -= 900;
-                if (board[i][j] == "wK") value += 20000;
-                if (board[i][j] == "bK") value -= 20000;
+                if (board[i][j] == "wN") value -= 320;
+                if (board[i][j] == "bN") value += 320;
+                if (board[i][j] == "wB") value -= 330;
+                if (board[i][j] == "bB") value += 330;
+                if (board[i][j] == "wQ") value -= 900;
+                if (board[i][j] == "bQ") value += 900;
+                if (board[i][j] == "wK") value -= 20000;
+                if (board[i][j] == "bK") value += 20000;
+
 
             }
         }

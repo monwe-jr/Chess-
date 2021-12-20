@@ -2,9 +2,7 @@ import com.sun.source.util.TaskEvent;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
@@ -505,13 +503,14 @@ public class Board extends JFrame implements MouseListener {
 
     /**
      * This method implements pawn promotion for the AI
-     * @param p  the position of the pawn at the end of the board
+     *
+     * @param p the position of the pawn at the end of the board
      */
     private void promotionAI(Point p) {
         int random = num.nextInt(2);
         input = false;
 
-       //change to Bishop or Knight
+        //change to Bishop or Knight
         if (depth == 1) {
             if (random == 0) {
                 board[p.x][p.y] = "bB";
@@ -525,7 +524,7 @@ public class Board extends JFrame implements MouseListener {
             frame.repaint();
             input = true;
 
-        //change to Rook or Queen
+            //change to Rook or Queen
         } else if (depth == 2) {
             if (random == 0) {
                 board[p.x][p.y] = "bR";
@@ -555,61 +554,115 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
-
     /**
      * Checks for checkmate on both players
      */
     private void checkmate() {
+        JButton button1 = new JButton("Reset");
+        JButton button2 = new JButton("Exit");
         JLabel msg = new JLabel();
-        msg.setSize(300, 300);
+        msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
         if (Piece.checkmate(board, 'w') || Piece.checkmate(board, 'b')) {
-            if (Piece.checkmate(board, 'b')) {
+            if (Piece.checkmate(board, 'w')) {
 
                 gameOver = true;
                 TimerTask task1 = new TimerTask() {
                     @Override
                     public void run() {
-                        frame.dispose();
+                        panel.removeAll();
+                        frame.invalidate();
+                        frame.validate();
+                        frame.repaint();
+                        msg.setText("White wins!");
+
+
+                        ActionListener listener = new ActionListener() {
+                            @Override
+
+                            public void actionPerformed(ActionEvent e) {
+
+                                if (e.getSource() == button1) {
+                                    Chess chess = new Chess();
+                                    button1.removeActionListener(this);
+                                    button2.removeActionListener(this);
+                                    Component button = (Component)e.getSource();
+                                    Window window = SwingUtilities.windowForComponent(button);
+                                    window.setVisible(false);
+                                } else if (e.getSource() == button2) {
+                                    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                                }
+
+
+                            }
+                        };
+
+                        panel.setLayout(new GridLayout(0, 3));
+                        button1.addActionListener(listener);
+                        button2.addActionListener(listener);
+                        panel.add(msg);
+                        panel.add(button1);
+                        panel.add(button2);
+                        frame.add(panel, BorderLayout.CENTER);
+                        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                        frame.setVisible(true);
+
+
                     }
+
                 };
                 timer.schedule(task1, 1000);
-                msg.setText("White wins!");
-                panel.add(msg);
-                frame.setSize(600,600);
-                frame.add(panel, BorderLayout.CENTER);
-                frame.setVisible(true);
-                TimerTask task2 = new TimerTask() {
-                    @Override
-                    public void run() {
-                        frame.dispose();
-                    }
-                };
 
-                timer.schedule(task2, 2000);
 
-            } else if (Piece.checkmate(board, 'w')) {
+            } else if (Piece.checkmate(board, 'b')) {
 
                 gameOver = true;
                 TimerTask task1 = new TimerTask() {
                     @Override
                     public void run() {
-                        frame.dispose();
+                        panel.removeAll();
+                        frame.invalidate();
+                        frame.validate();
+                        frame.repaint();
+                        msg.setText("Black wins!");
+
+
+
+                        ActionListener listener = new ActionListener() {
+                            @Override
+
+                            public void actionPerformed(ActionEvent e) {
+                                if (e.getSource() == button1) {
+                                    Chess chess = new Chess();
+                                    button1.removeActionListener(this);
+                                    button2.removeActionListener(this);
+                                    Component button = (Component)e.getSource();
+                                    Window window = SwingUtilities.windowForComponent(button);
+                                    window.setVisible(false);
+                                } else if (e.getSource() == button2) {
+                                    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                                }
+
+
+                            }
+                        };
+
+                        panel.setLayout(new GridLayout(0, 3));
+                        button1.addActionListener(listener);
+                        button2.addActionListener(listener);
+                        panel.add(msg);
+                        panel.add(button1);
+                        panel.add(button2);
+                        frame.add(panel, BorderLayout.CENTER);
+                        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                        frame.setVisible(true);
+
+
                     }
+
                 };
                 timer.schedule(task1, 1000);
-                msg.setText("Black wins!");
-                panel.add(msg);
-                frame.setSize(600,600);
-                frame.add(panel, BorderLayout.CENTER);
-                frame.setVisible(true);
-                TimerTask task2 = new TimerTask() {
-                    @Override
-                    public void run() {
-                        frame.dispose();
-                    }
-                };
-                timer.schedule(task2, 2000);
+
 
             }
 
@@ -621,33 +674,56 @@ public class Board extends JFrame implements MouseListener {
      * Checks for a draw
      */
     private void draw() {
+        JButton button1 = new JButton("Reset");
+        JButton button2 = new JButton("Exit");
         JLabel msg = new JLabel("Draw!");
+        msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
-        msg.setSize(300, 300);
         if (Piece.draw(board)) {
 
             gameOver = true;
             TimerTask task1 = new TimerTask() {
                 @Override
                 public void run() {
-                    frame.dispose();
-                }
-            };
+                    panel.removeAll();
+                    frame.invalidate();
+                    frame.validate();
+                    frame.repaint();
 
+                    ActionListener listener = new ActionListener() {
+                        @Override
+
+                        public void actionPerformed(ActionEvent e) {
+                            if (e.getSource() == button1) {
+                                Chess chess = new Chess();
+                                button1.removeActionListener(this);
+                                button2.removeActionListener(this);
+                                Component button = (Component)e.getSource();
+                                Window window = SwingUtilities.windowForComponent(button);
+                                window.setVisible(false);
+                            } else if (e.getSource() == button2) {
+                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                            }
+
+
+                        }
+                    };
+
+                    panel.setLayout(new GridLayout(0, 3));
+                    button1.addActionListener(listener);
+                    button2.addActionListener(listener);
+                    panel.add(msg);
+                    panel.add(button1);
+                    panel.add(button2);
+                    frame.add(panel, BorderLayout.CENTER);
+                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                    frame.setVisible(true);
+
+
+                }
+
+            };
             timer.schedule(task1, 1000);
-            panel.removeAll();
-            panel.add(msg);
-            frame.setSize(600,600);
-            frame.add(panel, BorderLayout.CENTER);
-            frame.setVisible(true);
-            TimerTask task2 = new TimerTask() {
-                @Override
-                public void run() {
-                    frame.dispose();
-                }
-            };
-            timer.schedule(task2, 2000);
-
         }
     }
 
