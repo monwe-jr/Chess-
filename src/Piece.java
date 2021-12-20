@@ -1295,7 +1295,10 @@ public class Piece {
                             pos2 = new Point(k,l);
                             temp = boardCopy(board);
                             //checks if this is a valid move
-                            if (moveWhitePiece(pos1,pos2,temp)) {
+                            if (colour=='w' && moveWhitePiece(pos1,pos2,temp)) {
+                                return false;
+                            }
+                            if (colour=='b' && moveBlackPiece(pos1,pos2,temp)) {
                                 return false;
                             }
                         }

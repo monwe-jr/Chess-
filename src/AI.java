@@ -13,7 +13,6 @@ public class AI {
     AI() {
 
 
-
     }
 
 
@@ -25,31 +24,6 @@ public class AI {
         }
 
         return temp;
-    }
-
-
-
-
-    /**
-     * Converts board coordinates to array coordinates
-     * @param x Board Coordinate
-     */
-    private Point convertBoardToArray(int x){
-        int pos = 0;
-        Point p;
-
-        for (int i = board.length-1; i >=0; i--) {
-            for (int j = 0; j <board[i].length ; j++) {
-
-                if (pos == x){
-                    return new Point(j,i);
-                }
-
-                pos++;
-            }
-        }
-        return null;
-
     }
 
     /**
@@ -140,8 +114,8 @@ public class AI {
     }
 
 
-    private boolean terminalTest(String[][] arr, char c){
-        if(Piece.checkmate(arr,c)|| Piece.draw(arr)){
+    private boolean terminalTest(String[][] arr, char c) {
+        if (Piece.checkmate(arr, c) || Piece.draw(arr)) {
             return true;
         }
         return false;
@@ -149,15 +123,16 @@ public class AI {
     }
 
 
-
-    public int minimax(String[][] arr, int d, int alpha, int beta, boolean maximizing) {
+    public int[] minimax(String[][] arr, int d, int alpha, int beta, boolean maximizing) {
+        int[] result = new int[3];
         String[][] temp;
         int value;
         int score;
 
 
         if (d == 0) {
-            return evaluation('b', 'w', arr);
+            result[2] = evaluation('b', 'w', arr);
+            return result;
         }
 
 
@@ -168,120 +143,49 @@ public class AI {
             for (int i = 0; i < firstPositions.size(); i++) {
                 temp = copyOf(arr);
                 Piece.moveBlackPiece(firstPositions.get(i), secondPositions.get(i), temp);
-                score = minimax(temp, d - 1, alpha, beta, false);
+                score = minimax(temp, d - 1, alpha, beta, false)[2];
 
                 if (score > value) {
                     value = score;
+                    result[0] = convertArrayToBoard(firstPositions.get(i));
+                    result[1] = convertArrayToBoard(secondPositions.get(i));
+
+                    result[2] = value;
 
                 }
+
                 alpha = Math.max(alpha, value);
-                if (alpha >= beta) {
+                if (beta <= alpha) {
                     break;
                 }
 
             }
 
-            return value;
+            return result;
 
         } else {
             value = Integer.MAX_VALUE;
-            getMoves('w', arr);
+            getMoves('b', arr);
 
 
             for (int i = 0; i < firstPositions.size(); i++) {
 
                 temp = copyOf(arr);
                 Piece.moveWhitePiece(firstPositions.get(i), secondPositions.get(i), temp);
-                score = minimax(temp, d - 1, alpha, beta, true);
+                value = Math.min(value, minimax(temp, d - 1, alpha, beta, true)[2]);
 
-                if (score < value) {
-                    value = score;
 
-                }
-                beta = Math.min(beta,value);
-                if(alpha >=beta){
+                result[2] = value;
+                beta = Math.min(beta, value);
+                if (beta <= alpha) {
                     break;
                 }
-            }
-            return value;
-        }
-
-
-    }
-
-
-
-
-    /**
-     * This method implements pawn promotion for the AI player
-     */
-    private void promotionAI(String[][] arr, Point p, int d, boolean b) {
-        int random = num.nextInt(2);
-        b = false;
-
-
-        if (d == 1) {
-            if (random == 0) {
-                arr[p.x][p.y] = "bB";
-            } else {
-                arr[p.x][p.y] = "bN";
-            }
-
-            b = true;
-
-        } else if (d == 2) {
-            if (random == 0) {
-                arr[p.x][p.y] = "bR";
-            } else {
-
-                arr[p.x][p.y] = "bQ";
-            }
-
-            b = true;
-        } else if (d == 3) {
-            arr[p.x][p.y] = "bQ";
-
-
-            b = true;
-
-        }
-
-
-    }
-
-
-    public void makeMove(String[][] arr, int d, boolean b) {
-        getMoves('b', arr);
-
-        int bestMove = Integer.MIN_VALUE;
-        int score;
-        Point p1 = null;
-        Point p2 = null;
-
-
-        for (int i = 0; i < firstPositions.size(); i++) {
-
-
-            String[][] temp = copyOf(arr);
-            Piece.moveBlackPiece(firstPositions.get(i), firstPositions.get(i), temp);
-            score = minimax(temp, d, Integer.MIN_VALUE, Integer.MAX_VALUE, true);
-
-            if (score > bestMove) {
-                p1 = firstPositions.get(i);
-                p2 = secondPositions.get(i);
-
-                System.out.println(p1);
-                System.out.println(p2);
 
 
             }
-
+            return result;
         }
 
-        Piece.moveBlackPiece(p1, p2, arr);
-        if (p2.y == 0 && board[p2.x][p2.y].charAt(1) == 'P') {
-            promotionAI(arr, p2, d, b);
-        }
 
     }
 
