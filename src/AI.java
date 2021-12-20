@@ -87,6 +87,15 @@ public class AI {
     }
 
 
+    /**
+     *
+     * @param arr The game minimax will recursively run on
+     * @param d the depth
+     * @param alpha alpha for alpha beta pruning
+     * @param beta  beta for alpha beta pruning
+     * @param maximizing maximizing prayer
+     * @return
+     */
     public int[] minimax(String[][] arr, int d, int alpha, int beta, boolean maximizing) {
         int[] result = new int[3];
         String[][] temp;
@@ -94,8 +103,10 @@ public class AI {
         int score;
 
 
-        if (d == 0) {
+        if (d == 0 || Piece.checkmate(arr,'w') || Piece.checkmate(arr,'b') || Piece.draw(arr)) {
             result[2] = heuristic(arr);
+            if (Piece.checkmate(arr,'w')) result[2] = Integer.MAX_VALUE;
+            if (Piece.checkmate(arr,'b')) result[2] = Integer.MIN_VALUE;
             return result;
         }
 
@@ -135,10 +146,10 @@ public class AI {
                 for (Point valid : validMoves(move, arr)) {
 
                     temp = copyOf(arr);
-                    Piece.moveBlackPiece(move, valid, temp);
+                    Piece.moveWhitePiece(move, valid, temp);
                     score = minimax(temp, d - 1, alpha, beta, true)[2];
 
-                    if (score > value) {
+                    if (score < value) {
                         value = score;
                         result[0] = convertArrayToBoard(move);
                         result[1] = convertArrayToBoard(valid);
@@ -160,7 +171,12 @@ public class AI {
     }
 
 
-
+    /**
+     * Returns an array of potential moves of pos1 (the initial point)
+     *
+     * @param pos1 Initial position
+     * @param arr  2D array representation of board
+     */
     private Point[] validMoves(Point pos1, String[][] arr) {
         ArrayList<Point> moves = new ArrayList<>();
         String[][] temp;
@@ -204,8 +220,6 @@ public class AI {
 
         return returns;
     }
-
-
 
 
 }

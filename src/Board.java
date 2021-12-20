@@ -552,7 +552,6 @@ public class Board extends JFrame implements MouseListener {
 
         }
 
-
     }
 
 
@@ -571,14 +570,15 @@ public class Board extends JFrame implements MouseListener {
                 TimerTask task1 = new TimerTask() {
                     @Override
                     public void run() {
-                        panel.removeAll();
+                        frame.dispose();
                     }
                 };
-
                 timer.schedule(task1, 1000);
                 msg.setText("White wins!");
                 panel.add(msg);
+                frame.setSize(600,600);
                 frame.add(panel, BorderLayout.CENTER);
+                frame.setVisible(true);
                 TimerTask task2 = new TimerTask() {
                     @Override
                     public void run() {
@@ -594,13 +594,15 @@ public class Board extends JFrame implements MouseListener {
                 TimerTask task1 = new TimerTask() {
                     @Override
                     public void run() {
-                        panel.removeAll();
+                        frame.dispose();
                     }
                 };
                 timer.schedule(task1, 1000);
                 msg.setText("Black wins!");
                 panel.add(msg);
+                frame.setSize(600,600);
                 frame.add(panel, BorderLayout.CENTER);
+                frame.setVisible(true);
                 TimerTask task2 = new TimerTask() {
                     @Override
                     public void run() {
@@ -635,7 +637,9 @@ public class Board extends JFrame implements MouseListener {
             timer.schedule(task1, 1000);
             panel.removeAll();
             panel.add(msg);
+            frame.setSize(600,600);
             frame.add(panel, BorderLayout.CENTER);
+            frame.setVisible(true);
             TimerTask task2 = new TimerTask() {
                 @Override
                 public void run() {
@@ -1126,7 +1130,7 @@ public class Board extends JFrame implements MouseListener {
 
                                                 check();
                                                 draw();
-//                                                checkmate();
+                                                checkmate();
                                                 pos1 = null;
                                                 pos2 = null;
                                                 AIMove(); //AI makes a move
