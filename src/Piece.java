@@ -729,7 +729,7 @@ public class Piece {
                 //loop up each tile
                 for (int i=1; x1+i<8;i++) {
                     //check for a blocking black piece
-                    if (board[x1+1][y1].charAt(0)=='b') {
+                    if (board[x1+i][y1].charAt(0)=='b') {
                         System.out.println("ERROR 109: Invalid movement");
                         return false;
                     }
@@ -740,7 +740,7 @@ public class Piece {
                         return true;
                     }
                     //check for blocking white piece
-                    if (board[x1+1][y1].charAt(0)=='w') {
+                    if (board[x1+i][y1].charAt(0)=='w') {
                         System.out.println("ERROR 110: Invalid movement");
                         return false;
                     }

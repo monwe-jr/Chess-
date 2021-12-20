@@ -5,9 +5,8 @@ import java.util.Random;
 public class AI {
     Piece pieces = new Piece();
     String[][] board = pieces.board;
-    Random num = new Random();
-    private ArrayList<Point> firstPositions = new ArrayList<>();         //initial locations
-    private ArrayList<Point> secondPositions = new ArrayList<>();       //valid move per location
+//    private ArrayList<Point> firstPositions = new ArrayList<>();         //initial locations
+//    private ArrayList<Point> secondPositions = new ArrayList<>();       //valid move per location
 
 
     AI() {
@@ -49,77 +48,42 @@ public class AI {
         return x;
     }
 
+    static public int heuristic(String[][] board) {
+        int value = 0;
 
-    /**
-     * Scores the state of the board
-     *
-     * @param c   score
-     * @param arr board that will be scored
-     * @return
-     */
-    private int score(char c, String[][] arr) {
-        int score = 0;
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+
+                if (board[i][j] == "wP") value -= 100;
+                if (board[i][j] == "bP") value += 100;
+                if (board[i][j] == "wN") value += 320;
+                if (board[i][j] == "bN") value -= 320;
+                if (board[i][j] == "wB") value += 330;
+                if (board[i][j] == "bB") value -= 330;
+                if (board[i][j] == "wQ") value += 900;
+                if (board[i][j] == "bQ") value -= 900;
+                if (board[i][j] == "wK") value += 20000;
+                if (board[i][j] == "bK") value -= 20000;
+
+            }
+        }
+        return value;
+    }
+
+
+    private ArrayList<Point> getMoves(String[][] arr, char c) {
+        ArrayList<Point> temp = new ArrayList<>();
+
         for (int i = arr.length - 1; i >= 0; i--) {
             for (int j = 0; j < arr.length; j++) {
-                Point p = new Point(j, i);
-
-                if (c == 'w') {
-                    if (Piece.checkmate(arr, 'b')) {
-                        score += 9000;
-                    } else if (arr[p.x][p.y] == "wP") {
-                        score += 1;
-                    } else if (arr[p.x][p.y] == "wN") {
-                        score += 3;
-                    } else if (arr[p.x][p.y] == "wB") {
-                        score += 3;
-                    } else if (arr[p.x][p.y] == "wR") {
-                        score += 5;
-                    } else if (arr[p.x][p.y] == "wQ") {
-                        score += 8;
-                    } else {
-                        score += 100;
-                    }
-
-
-                } else {
-                    if (Piece.checkmate(arr, 'w')) {
-                        score += 9000;
-                    } else if (arr[p.x][p.y] == "bP") {
-                        score += 1;
-                    } else if (arr[p.x][p.y] == "bN") {
-                        score += 3;
-                    } else if (arr[p.x][p.y] == "bB") {
-                        score += 3;
-                    } else if (arr[p.x][p.y] == "wR") {
-                        score += 5;
-
-                    } else if (arr[p.x][p.y] == "bQ") {
-                        score += 8;
-                    } else {
-                        score += 100;
-                    }
-
-
+                if (board[j][i].charAt(0) == c) {
+                    temp.add(new Point(j, i));
                 }
 
             }
         }
 
-        return score;
-    }
-
-    //evaluates the score of the AI
-    private int evaluation(char c1, char c2, String[][] arr) {
-        return (score(c1, arr) - score(c2, arr));
-    }
-
-
-    private boolean terminalTest(String[][] arr, char c) {
-        if (Piece.checkmate(arr, c) || Piece.draw(arr)) {
-            return true;
-        }
-        return false;
-
+        return temp;
     }
 
 
@@ -131,32 +95,33 @@ public class AI {
 
 
         if (d == 0) {
-            result[2] = evaluation('b', 'w', arr);
+            result[2] = heuristic(arr);
             return result;
         }
 
 
         if (maximizing) {
             value = Integer.MIN_VALUE;
-            getMoves('b', arr);
+            ArrayList<Point> moves = getMoves(arr, 'b');
+            for (Point move : moves) {
+                for (Point valid : validMoves(move, arr)) {
 
-            for (int i = 0; i < firstPositions.size(); i++) {
-                temp = copyOf(arr);
-                Piece.moveBlackPiece(firstPositions.get(i), secondPositions.get(i), temp);
-                score = minimax(temp, d - 1, alpha, beta, false)[2];
+                    temp = copyOf(arr);
+                    Piece.moveBlackPiece(move, valid, temp);
+                    score = minimax(temp, d - 1, alpha, beta, false)[2];
 
-                if (score > value) {
-                    value = score;
-                    result[0] = convertArrayToBoard(firstPositions.get(i));
-                    result[1] = convertArrayToBoard(secondPositions.get(i));
+                    if (score > value) {
+                        value = score;
+                        result[0] = convertArrayToBoard(move);
+                        result[1] = convertArrayToBoard(valid);
+                        result[2] = value;
+                    }
 
-                    result[2] = value;
+                    alpha = Math.max(alpha, value);
 
-                }
-
-                alpha = Math.max(alpha, value);
-                if (beta <= alpha) {
-                    break;
+                    if (beta <= alpha) {
+                        break;
+                    }
                 }
 
             }
@@ -165,29 +130,35 @@ public class AI {
 
         } else {
             value = Integer.MAX_VALUE;
-            getMoves('b', arr);
+            ArrayList<Point> moves = getMoves(arr, 'w');
+            for (Point move : moves) {
+                for (Point valid : validMoves(move, arr)) {
 
+                    temp = copyOf(arr);
+                    Piece.moveBlackPiece(move, valid, temp);
+                    score = minimax(temp, d - 1, alpha, beta, true)[2];
 
-            for (int i = 0; i < firstPositions.size(); i++) {
+                    if (score > value) {
+                        value = score;
+                        result[0] = convertArrayToBoard(move);
+                        result[1] = convertArrayToBoard(valid);
+                        result[2] = value;
+                    }
 
-                temp = copyOf(arr);
-                Piece.moveWhitePiece(firstPositions.get(i), secondPositions.get(i), temp);
-                value = Math.min(value, minimax(temp, d - 1, alpha, beta, true)[2]);
-
-
-                result[2] = value;
-                beta = Math.min(beta, value);
-                if (beta <= alpha) {
-                    break;
+                    beta = Math.min(beta, value);
+                    if (beta <= alpha) {
+                        break;
+                    }
                 }
 
-
             }
+
             return result;
         }
 
 
     }
+
 
 
     private Point[] validMoves(Point pos1, String[][] arr) {
@@ -235,56 +206,6 @@ public class AI {
     }
 
 
-    /**
-     * Finds all the pieces of a specified colour and keeps the pieces type, pieces location, and potential moves of each piece found
-     *
-     * @param c Specified colour
-     */
-    public void getMoves(char c, String[][] arr) {
-        if (!firstPositions.isEmpty()) {
-            firstPositions.clear();
-            secondPositions.clear();
-        }
-
-        //Only keep memory of white pieces
-        if (c == 'w') {
-            for (int i = arr.length - 1; i >= 0; i--) {
-                for (int j = 0; j < arr.length; j++) {
-                    Point p = new Point(j, i);
-                    if (arr[p.x][p.y].charAt(0) == 'w') {
-                        Point[] valid = validMoves(p, arr);
-                        for (int k = 0; k < valid.length; k++) {
-                            firstPositions.add(p);
-                            secondPositions.add(valid[k]);
-                        }
-
-
-                    }
-
-                }
-            }
-        } else {
-            //Only keep memory of black pieces
-            for (int i = arr.length - 1; i >= 0; i--) {
-                for (int j = 0; j < arr.length; j++) {
-                    Point p = new Point(j, i);
-                    if (arr[p.x][p.y].charAt(0) == 'b') {
-                        Point[] valid = validMoves(p, arr);
-                        for (int k = 0; k < valid.length; k++) {
-                            firstPositions.add(p);
-                            secondPositions.add(valid[k]);
-                        }
-
-
-                    }
-
-
-                }
-            }
-
-
-        }
-    }
 
 
 }
