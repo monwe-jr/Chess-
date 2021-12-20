@@ -560,8 +560,6 @@ public class Board extends JFrame implements MouseListener {
     private void checkmate() {
         JButton button1 = new JButton("Reset");
         JButton button2 = new JButton("Exit");
-        JLabel msg = new JLabel();
-        msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
         if (Piece.checkmate(board, 'w') || Piece.checkmate(board, 'b')) {
             if (Piece.checkmate(board, 'w')) {
@@ -574,7 +572,8 @@ public class Board extends JFrame implements MouseListener {
                         frame.invalidate();
                         frame.validate();
                         frame.repaint();
-                        msg.setText("White wins!");
+                        JLabel msg = new JLabel("White Wins!",SwingConstants.CENTER);
+                        msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
 
                         ActionListener listener = new ActionListener() {
@@ -624,7 +623,8 @@ public class Board extends JFrame implements MouseListener {
                         frame.invalidate();
                         frame.validate();
                         frame.repaint();
-                        msg.setText("Black wins!");
+                        JLabel msg = new JLabel("Black Wins!",SwingConstants.CENTER);
+                        msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
 
 
@@ -676,8 +676,7 @@ public class Board extends JFrame implements MouseListener {
     private void draw() {
         JButton button1 = new JButton("Reset");
         JButton button2 = new JButton("Exit");
-        JLabel msg = new JLabel("Draw!");
-        msg.setFont(new Font("Serif", Font.PLAIN, 50));
+
 
         if (Piece.draw(board)) {
 
@@ -689,6 +688,8 @@ public class Board extends JFrame implements MouseListener {
                     frame.invalidate();
                     frame.validate();
                     frame.repaint();
+                    JLabel msg = new JLabel("Draw!");
+                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
                     ActionListener listener = new ActionListener() {
                         @Override
