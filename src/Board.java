@@ -260,16 +260,14 @@ public class Board extends JFrame implements MouseListener {
      */
     private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
         ArrayList<Point> returns = new ArrayList<>();
-        String[][] temp;
         Point pos2;
 
         if ((arr[pos1.x][pos1.y].charAt(0) == 'w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
-                    temp = copyOf(arr);
                     pos2 = new Point(j, i);
 
-                    if (Piece.moveWhitePiece(pos1, pos2, temp)) {
+                    if (Piece.moveWhitePiece(pos1, pos2, arr,false)) {
                         returns.add(pos2);
 
                     }
@@ -278,10 +276,9 @@ public class Board extends JFrame implements MouseListener {
         } else if (arr[pos1.x][pos1.y].charAt(0) == 'b'){
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
-                    temp = copyOf(arr);
                     pos2 = new Point(j, i);
 
-                    if (Piece.moveBlackPiece(pos1, pos2, temp)) {
+                    if (Piece.moveBlackPiece(pos1, pos2, arr,false)) {
                         returns.add(pos2);
 
                     }
@@ -767,7 +764,7 @@ public class Board extends JFrame implements MouseListener {
             pos1 = convertBoardToArray(result[0]);
             pos2 = convertBoardToArray(result[1]);
 
-            Piece.moveBlackPiece(pos1, pos2, board);
+            Piece.moveBlackPiece(pos1, pos2, board,true);
             updateGUI(board);
             frame.setVisible(true);
 
@@ -840,8 +837,8 @@ public class Board extends JFrame implements MouseListener {
                                 j = convertArrayToBoard(pos1);
                                 panel.getComponent(j).setBackground(colorAt(pos1));   //restore the highlighted tile of pos1 back to its original color
                                 if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
-                                    Piece.moveWhitePiece(pos1, pos2, board);
-                                    Piece.drawBoard(board);
+                                    Piece.moveWhitePiece(pos1, pos2, board,true);
+                                    //Piece.drawBoard(board);
                                     updateGUI(board);
                                     frame.setVisible(true);
 
@@ -900,8 +897,8 @@ public class Board extends JFrame implements MouseListener {
                                                 j = convertArrayToBoard(pos1);
                                                 panel.getComponent(j).setBackground(colorAt(pos1));
                                                 if (temp.contains(pos2)) {
-                                                    Piece.moveWhitePiece(pos1, pos2, board);
-                                                    Piece.drawBoard(board);
+                                                    Piece.moveWhitePiece(pos1, pos2, board,true);
+                                                    //Piece.drawBoard(board);
                                                     updateGUI(board);
                                                     frame.setVisible(true);
 
@@ -978,8 +975,8 @@ public class Board extends JFrame implements MouseListener {
                                 j = convertArrayToBoard(pos1);
                                 panel.getComponent(j).setBackground(colorAt(pos1)); //restore the highlighted tile of pos1 back to its original color
                                 if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
-                                    Piece.moveBlackPiece(pos1, pos2, board);
-                                    Piece.drawBoard(board);
+                                    Piece.moveBlackPiece(pos1, pos2, board,true);
+                                    //Piece.drawBoard(board);
                                     updateGUI(board);
                                     frame.setVisible(true);
 
@@ -1042,8 +1039,8 @@ public class Board extends JFrame implements MouseListener {
                                                 j = convertArrayToBoard(pos1);
                                                 panel.getComponent(j).setBackground(colorAt(pos1));
                                                 if (temp.contains(pos2)) {
-                                                    Piece.moveBlackPiece(pos1, pos2, board);
-                                                    Piece.drawBoard(board);
+                                                    Piece.moveBlackPiece(pos1, pos2, board,true);
+                                                    //Piece.drawBoard(board);
                                                     updateGUI(board);
                                                     frame.setVisible(true);
 
@@ -1126,7 +1123,7 @@ public class Board extends JFrame implements MouseListener {
                             j = convertArrayToBoard(pos1);
                             panel.getComponent(j).setBackground(colorAt(pos1));
                             if (temp.contains(pos2)) {
-                                Piece.moveWhitePiece(pos1, pos2, board);
+                                Piece.moveWhitePiece(pos1, pos2, board,true);
                                 updateGUI(board);
                                 frame.setVisible(true);
 
@@ -1187,8 +1184,8 @@ public class Board extends JFrame implements MouseListener {
                                             j = convertArrayToBoard(pos1);
                                             panel.getComponent(j).setBackground(colorAt(pos1));
                                             if (temp.contains(pos2)) {
-                                                Piece.moveWhitePiece(pos1, pos2, board);
-                                                Piece.drawBoard(board);
+                                                Piece.moveWhitePiece(pos1, pos2, board,true);
+                                                //Piece.drawBoard(board);
                                                 updateGUI(board);
                                                 frame.setVisible(true);
 

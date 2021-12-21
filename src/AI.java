@@ -119,12 +119,12 @@ public class AI {
 
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
-                if (board[i][j] == "wP") value -= 100;
-                if (board[i][j] == "wN") value -= 320;
-                if (board[i][j] == "wB") value -= 330;
-                if (board[i][j] == "wR") value -= 500;
-                if (board[i][j] == "wQ") value -= 900;
-                if (board[i][j] == "wK") value -= 20000;
+                if (board[i][j] == "wP") value -= 100+pawnTable[7-j][7-i];
+                if (board[i][j] == "wN") value -= 320+knightTable[7-j][7-i];
+                if (board[i][j] == "wB") value -= 330+bishopTable[7-j][7-i];
+                if (board[i][j] == "wR") value -= 500+rookTable[7-j][7-i];
+                if (board[i][j] == "wQ") value -= 900+queenTable[7-j][7-i];
+                if (board[i][j] == "wK") value -= 20000+kingTable[7-j][7-i];
 
                 if (board[i][j] == "bP") value += 100+pawnTable[j][i];
                 if (board[i][j] == "bN") value += 320+knightTable[j][i];
@@ -136,7 +136,6 @@ public class AI {
         }
         return value;
     }
-
 
     private ArrayList<Point> getMoves(String[][] arr, char c) {
         ArrayList<Point> temp = new ArrayList<>();
@@ -185,7 +184,7 @@ public class AI {
                 for (Point valid : validMoves(move, arr)) {
 
                     temp = copyOf(arr);
-                    Piece.moveBlackPiece(move, valid, temp);
+                    Piece.moveBlackPiece(move, valid, temp,true);
                     score = minimax(temp, d - 1, alpha, beta, false)[2];
 
                     if (score > value) {
@@ -212,7 +211,7 @@ public class AI {
                 for (Point valid : validMoves(move, arr)) {
 
                     temp = copyOf(arr);
-                    Piece.moveWhitePiece(move, valid, temp);
+                    Piece.moveWhitePiece(move, valid, temp,true);
                     score = minimax(temp, d - 1, alpha, beta, true)[2];
 
                     if (score < value) {
@@ -243,17 +242,15 @@ public class AI {
      */
     private Point[] validMoves(Point pos1, String[][] arr) {
         ArrayList<Point> moves = new ArrayList<>();
-        String[][] temp;
         Point[] returns;
 
         //if pos1 is the location of a white pieces
         if ((arr[pos1.x][pos1.y].charAt(0) == 'w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
-                    temp = copyOf(arr);
                     Point pos2 = new Point(j, i);
 
-                    if (Piece.moveWhitePiece(pos1, pos2, temp)) {
+                    if (Piece.moveWhitePiece(pos1, pos2, arr,false)) {
                         moves.add(pos2);
 
                     }
@@ -263,10 +260,9 @@ public class AI {
             //if pos1 is the location of a black pieces
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
-                    temp = copyOf(arr);
                     Point pos2 = new Point(j, i);
 
-                    if (Piece.moveBlackPiece(pos1, pos2, temp)) {
+                    if (Piece.moveBlackPiece(pos1, pos2, arr,false)) {
                         moves.add(pos2);
 
                     }
