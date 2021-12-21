@@ -1,12 +1,11 @@
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.Random;
 
+
+@SuppressWarnings({"StringEquality", "IfStatementWithIdenticalBranches", "AccessStaticViaInstance"})
 public class AI {
     Piece pieces = new Piece();
     String[][] board = pieces.board;
-//    private ArrayList<Point> firstPositions = new ArrayList<>();         //initial locations
-//    private ArrayList<Point> secondPositions = new ArrayList<>();       //valid move per location
 
 
     AI() {
@@ -95,7 +94,7 @@ public class AI {
      * @param alpha alpha for alpha beta pruning
      * @param beta  beta for alpha beta pruning
      * @param maximizing maximizing prayer
-     * @return
+     * @return initial position, selected position,and minimax value
      */
     public int[] minimax(String[][] arr, int d, int alpha, int beta, boolean maximizing) {
         int[] result = new int[3];
@@ -182,7 +181,7 @@ public class AI {
         Point[] returns;
 
         //if pos1 is the location of a white pieces
-        if ((board[pos1.x][pos1.y].charAt(0) == 'w')) {
+        if ((arr[pos1.x][pos1.y].charAt(0) == 'w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
@@ -194,7 +193,7 @@ public class AI {
                     }
                 }
             }
-        } else {
+        } else if (arr[pos1.x][pos1.y].charAt(0) == 'b') {
             //if pos1 is the location of a black pieces
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {

@@ -1,5 +1,3 @@
-import com.sun.source.util.TaskEvent;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -9,21 +7,25 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 
-@SuppressWarnings({"StringEquality", "ConstantConditions"})
+@SuppressWarnings({"StringEquality", "ConstantConditions", "unused", "AccessStaticViaInstance"})
 public class Board extends JFrame implements MouseListener {
     AI bot;
-    Piece pieces = new Piece();
-    Random num = new Random();
+    Point pos1; //initial position
+    Point pos2; //selected position
+    ArrayList<Point> temp; //holds potential moves of pos1
+    ArrayList<Point> killTemp; //holds potential kills of pos1
     boolean input; //used to disable user input
     public String mode;  //mode of game
     public int depth;  //minimax depth
     int turn; //turn
     boolean gameOver; //game over
-    boolean stopAI;  //stops thefrom mkaing a move if true
+    boolean stopAI;  //stops the AI from making a move if true
+    Piece pieces = new Piece();
     String[][] board = pieces.board;  //2D array that represents the state of the game
     JFrame frame = new JFrame("Chess");
     JPanel panel = new JPanel(new GridLayout(8, 8));  //initializes JPanel layout
     Timer timer = new Timer();
+    Random num = new Random();
     Point bKing; //location of black king
     Point wKing; //location of white king
 
@@ -261,7 +263,7 @@ public class Board extends JFrame implements MouseListener {
         String[][] temp;
         Point pos2;
 
-        if ((board[pos1.x][pos1.y].charAt(0) == 'w')) {
+        if ((arr[pos1.x][pos1.y].charAt(0) == 'w')) {
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
@@ -273,7 +275,7 @@ public class Board extends JFrame implements MouseListener {
                     }
                 }
             }
-        } else {
+        } else if (arr[pos1.x][pos1.y].charAt(0) == 'b'){
             for (int i = 0; i < arr.length; i++) {
                 for (int j = 0; j < arr.length; j++) {
                     temp = copyOf(arr);
@@ -501,6 +503,7 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+
     /**
      * This method implements pawn promotion for the AI
      *
@@ -554,6 +557,7 @@ public class Board extends JFrame implements MouseListener {
     }
 
 
+
     /**
      * Checks for checkmate on both players
      */
@@ -561,112 +565,108 @@ public class Board extends JFrame implements MouseListener {
         JButton button1 = new JButton("Reset");
         JButton button2 = new JButton("Exit");
 
-        if (Piece.checkmate(board, 'w') || Piece.checkmate(board, 'b')) {
-            if (Piece.checkmate(board, 'w')) {
+        if (Piece.checkmate(board, 'b')) {
 
-                gameOver = true;
-                TimerTask task1 = new TimerTask() {
-                    @Override
-                    public void run() {
-                        panel.removeAll();
-                        frame.invalidate();
-                        frame.validate();
-                        frame.repaint();
-                        JLabel msg = new JLabel("White Wins!",SwingConstants.CENTER);
-                        msg.setFont(new Font("Serif", Font.PLAIN, 50));
-
-
-                        ActionListener listener = new ActionListener() {
-                            @Override
-
-                            public void actionPerformed(ActionEvent e) {
-
-                                if (e.getSource() == button1) {
-                                    Chess chess = new Chess();
-                                    button1.removeActionListener(this);
-                                    button2.removeActionListener(this);
-                                    Component button = (Component)e.getSource();
-                                    Window window = SwingUtilities.windowForComponent(button);
-                                    window.setVisible(false);
-                                } else if (e.getSource() == button2) {
-                                    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                                }
+            gameOver = true;
+            TimerTask task1 = new TimerTask() {
+                @Override
+                public void run() {
+                    panel.removeAll();
+                    frame.invalidate();
+                    frame.validate();
+                    frame.repaint();
+                    JLabel msg = new JLabel("White Wins!", SwingConstants.CENTER);
+                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
 
+                    ActionListener listener = new ActionListener() {
+                        @Override
+
+                        public void actionPerformed(ActionEvent e) {
+
+                            if (e.getSource() == button1) {
+                                Chess chess = new Chess();
+                                button1.removeActionListener(this);
+                                button2.removeActionListener(this);
+                                Component button = (Component) e.getSource();
+                                Window window = SwingUtilities.windowForComponent(button);
+                                window.setVisible(false);
+                            } else if (e.getSource() == button2) {
+                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
                             }
-                        };
-
-                        panel.setLayout(new GridLayout(0, 3));
-                        button1.addActionListener(listener);
-                        button2.addActionListener(listener);
-                        panel.add(msg);
-                        panel.add(button1);
-                        panel.add(button2);
-                        frame.add(panel, BorderLayout.CENTER);
-                        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                        frame.setVisible(true);
 
 
-                    }
+                        }
+                    };
 
-                };
-                timer.schedule(task1, 1000);
-
-
-            } else if (Piece.checkmate(board, 'b')) {
-
-                gameOver = true;
-                TimerTask task1 = new TimerTask() {
-                    @Override
-                    public void run() {
-                        panel.removeAll();
-                        frame.invalidate();
-                        frame.validate();
-                        frame.repaint();
-                        JLabel msg = new JLabel("Black Wins!",SwingConstants.CENTER);
-                        msg.setFont(new Font("Serif", Font.PLAIN, 50));
+                    panel.setLayout(new GridLayout(0, 3));
+                    button1.addActionListener(listener);
+                    button2.addActionListener(listener);
+                    panel.add(msg);
+                    panel.add(button1);
+                    panel.add(button2);
+                    frame.add(panel, BorderLayout.CENTER);
+                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                    frame.setVisible(true);
 
 
+                }
 
-                        ActionListener listener = new ActionListener() {
-                            @Override
-
-                            public void actionPerformed(ActionEvent e) {
-                                if (e.getSource() == button1) {
-                                    Chess chess = new Chess();
-                                    button1.removeActionListener(this);
-                                    button2.removeActionListener(this);
-                                    Component button = (Component)e.getSource();
-                                    Window window = SwingUtilities.windowForComponent(button);
-                                    window.setVisible(false);
-                                } else if (e.getSource() == button2) {
-                                    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                                }
+            };
+            timer.schedule(task1, 1000);
 
 
+        } else if (Piece.checkmate(board, 'w')) {
+
+            gameOver = true;
+            TimerTask task1 = new TimerTask() {
+                @Override
+                public void run() {
+                    panel.removeAll();
+                    frame.invalidate();
+                    frame.validate();
+                    frame.repaint();
+                    JLabel msg = new JLabel("Black Wins!", SwingConstants.CENTER);
+                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
+
+
+                    ActionListener listener = new ActionListener() {
+                        @Override
+
+                        public void actionPerformed(ActionEvent e) {
+                            if (e.getSource() == button1) {
+                                Chess chess = new Chess();
+                                button1.removeActionListener(this);
+                                button2.removeActionListener(this);
+                                Component button = (Component) e.getSource();
+                                Window window = SwingUtilities.windowForComponent(button);
+                                window.setVisible(false);
+                            } else if (e.getSource() == button2) {
+                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
                             }
-                        };
-
-                        panel.setLayout(new GridLayout(0, 3));
-                        button1.addActionListener(listener);
-                        button2.addActionListener(listener);
-                        panel.add(msg);
-                        panel.add(button1);
-                        panel.add(button2);
-                        frame.add(panel, BorderLayout.CENTER);
-                        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                        frame.setVisible(true);
 
 
-                    }
+                        }
+                    };
 
-                };
-                timer.schedule(task1, 1000);
+                    panel.setLayout(new GridLayout(0, 3));
+                    button1.addActionListener(listener);
+                    button2.addActionListener(listener);
+                    panel.add(msg);
+                    panel.add(button1);
+                    panel.add(button2);
+                    frame.add(panel, BorderLayout.CENTER);
+                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+                    frame.setVisible(true);
 
 
-            }
+                }
+
+            };
+            timer.schedule(task1, 1000);
 
         }
+
     }
 
 
@@ -688,7 +688,7 @@ public class Board extends JFrame implements MouseListener {
                     frame.invalidate();
                     frame.validate();
                     frame.repaint();
-                    JLabel msg = new JLabel("Draw!");
+                    JLabel msg = new JLabel("Draw!", SwingConstants.CENTER);
                     msg.setFont(new Font("Serif", Font.PLAIN, 50));
 
                     ActionListener listener = new ActionListener() {
@@ -699,7 +699,7 @@ public class Board extends JFrame implements MouseListener {
                                 Chess chess = new Chess();
                                 button1.removeActionListener(this);
                                 button2.removeActionListener(this);
-                                Component button = (Component)e.getSource();
+                                Component button = (Component) e.getSource();
                                 Window window = SwingUtilities.windowForComponent(button);
                                 window.setVisible(false);
                             } else if (e.getSource() == button2) {
@@ -738,18 +738,21 @@ public class Board extends JFrame implements MouseListener {
 
         if (Piece.check(board, 'w') || Piece.check(board, 'b')) {
 
-            if (Piece.check(board, 'w')) {
+            if (Piece.check(board, 'w') && (!Piece.checkmate(board, 'b') || !Piece.checkmate(board, 'w'))) {
                 panel.getComponent(wK).setBackground(new Color(255, 51, 51));
 
-            } else if (Piece.check(board, 'b')) {
+
+            } else if (mode != "AI" && Piece.check(board, 'b') && (!Piece.checkmate(board, 'b') || !Piece.checkmate(board, 'w'))) {
                 panel.getComponent(bK).setBackground(new Color(255, 51, 51));
+
             }
 
 
         } else {
-            panel.getComponent(wK).setBackground(colorAt(wKing));
-            panel.getComponent(bK).setBackground(colorAt(bKing));
-
+            if (!Piece.checkmate(board, 'w') || !Piece.checkmate(board, 'b')) {
+                panel.getComponent(wK).setBackground(colorAt(wKing));
+                panel.getComponent(bK).setBackground(colorAt(bKing));
+            }
         }
 
     }
@@ -764,7 +767,6 @@ public class Board extends JFrame implements MouseListener {
             pos1 = convertBoardToArray(result[0]);
             pos2 = convertBoardToArray(result[1]);
 
-
             Piece.moveBlackPiece(pos1, pos2, board);
             updateGUI(board);
             frame.setVisible(true);
@@ -773,6 +775,7 @@ public class Board extends JFrame implements MouseListener {
             if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                 promotionAI(pos2);
             }
+
             check();
             draw();
             checkmate();
@@ -780,16 +783,6 @@ public class Board extends JFrame implements MouseListener {
             pos2 = null;
         }
     }
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    Point pos1;
-    Point pos2;
-    Point pos1temp;
-    Point pos2temp;
-    ArrayList<Point> temp = new ArrayList<>();
-    ArrayList<Point> killTemp = new ArrayList<>();
 
 
     @SuppressWarnings({"StringEquality", "ConstantConditions"})
@@ -800,9 +793,8 @@ public class Board extends JFrame implements MouseListener {
         int j; // location of clicked converted to board coordinates
 
 
-        if (!gameOver) {
+        if (!gameOver) {   // if game is not over (no checkmate or draw)
             if (input) {  //if the program is allowing an input
-
                 if (mode == "Human") {  //Human vs Human
                     if (turn == 0) {
 
@@ -812,61 +804,63 @@ public class Board extends JFrame implements MouseListener {
                             temp = validMoves(pos1, board);
                             killTemp = findKill(pos1, temp);
 
+                            //only run the code if player picked a valid piece
                             if (board[pos1.x][pos1.y].charAt(0) != 'b') {
                                 if (board[pos1.x][pos1.y] != "  ") {
                                     j = convertArrayToBoard(pos1);
-                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));  //highlight the tiles of the piece the player selected to move
                                 }
 
-                                for (Point point : temp) {
+                                for (Point point : temp) {      //highlight the tiles of valid moves the player can get
                                     int k = convertArrayToBoard(point);
                                     panel.getComponent(k).setBackground(new Color(255, 255, 153));
                                 }
 
-                                for (Point point : killTemp) {
+                                for (Point point : killTemp) {    //highlight the tiles if opposing pieces the player can kill
                                     int k = convertArrayToBoard(point);
                                     panel.getComponent(k).setBackground(new Color(255, 51, 51));
                                 }
 
                             } else {
-                                pos1 = null;
+                                pos1 = null;    //if player did not pick a valid piece, make them pick another piece
                             }
 
 
                         } else {
 
                             //white selected move
-                            for (Point value : temp) {
+                            for (Point value : temp) {      //restore the color of the valid moves tiles highlighted
                                 int k = convertArrayToBoard(value);
                                 panel.getComponent(k).setBackground(colorAt(value));
                             }
 
+                            //if the player selected a valid drop point
                             if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                pos2 = new Point(x - 1, y - 1);
+                                pos2 = new Point(x - 1, y - 1);    //location the player has decided to drop the piece
                                 j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(colorAt(pos1));
-                                if (temp.contains(pos2)) {
+                                panel.getComponent(j).setBackground(colorAt(pos1));   //restore the highlighted tile of pos1 back to its original color
+                                if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
                                     Piece.moveWhitePiece(pos1, pos2, board);
                                     Piece.drawBoard(board);
                                     updateGUI(board);
                                     frame.setVisible(true);
 
-                                    //pawn promotion
+                                    //check for pawn promotion
                                     if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                                         promotion(pos2);
                                     }
 
-                                    check();
-                                    draw();
-                                    checkmate();
-                                    pos1 = null;
-                                    pos2 = null;
+                                    check();  //check for check
+                                    draw();   //check for draw
+                                    checkmate(); //check for checkmate
+                                    pos1 = null;  //make pos1 to null for next move
+                                    pos2 = null; //make pos2 to null for next move
                                     turn += 1;
                                     turn = turn % 2;
 
                                 } else {
 
-                                    //if white changes initial section
+                                    //repeats the same process above if white changes initial section
                                     if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
                                         pos1 = null;
                                         if (pos1 == null) {
@@ -943,69 +937,69 @@ public class Board extends JFrame implements MouseListener {
 
                     } else { ////////////////////////////black move
 
-                        //black initial selection
+                        //black initial selection of Human vs Human
                         if (pos1 == null) {
                             pos1 = new Point(x - 1, y - 1);
                             temp = validMoves(pos1, board);
                             killTemp = findKill(pos1, temp);
 
+                            //only run the code if player picked a valid piece
                             if (board[pos1.x][pos1.y].charAt(0) != 'w') {
                                 if (board[pos1.x][pos1.y] != "  ") {
                                     j = convertArrayToBoard(pos1);
-                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
+                                    panel.getComponent(j).setBackground(new Color(255, 255, 105)); //highlight the tiles of the piece the player selected to move
                                 }
 
-
-                                for (Point point : temp) {
+                                for (Point point : temp) {    //highlight the tiles of valid moves the player can get
                                     int k = convertArrayToBoard(point);
                                     panel.getComponent(k).setBackground(new Color(255, 255, 153));
                                 }
 
-                                for (Point point : killTemp) {
+                                for (Point point : killTemp) {  //highlight the tiles if opposing pieces the player can kill
                                     int k = convertArrayToBoard(point);
                                     panel.getComponent(k).setBackground(new Color(255, 51, 51));
                                 }
 
                             } else {
-                                pos1 = null;
+                                pos1 = null; //if player did not pick a valid piece, make them pick another piece
                             }
 
 
                         } else {
 
                             //black selected move
-                            for (Point value : temp) {
+                            for (Point value : temp) {   //restore the color of the valid moves tiles highlighted
                                 int k = convertArrayToBoard(value);
                                 panel.getComponent(k).setBackground(colorAt(value));
                             }
 
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                pos2 = new Point(x - 1, y - 1);
+                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {   //if the player selected a valid drop point
+                                pos2 = new Point(x - 1, y - 1); //location the player has decided to drop the piece
                                 j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(colorAt(pos1));
-                                if (temp.contains(pos2)) {
+                                panel.getComponent(j).setBackground(colorAt(pos1)); //restore the highlighted tile of pos1 back to its original color
+                                if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
                                     Piece.moveBlackPiece(pos1, pos2, board);
                                     Piece.drawBoard(board);
                                     updateGUI(board);
                                     frame.setVisible(true);
 
-                                    //pawn promotion
+                                    //check for pawn promotion
                                     if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                                         promotion(pos2);
                                     }
 
-                                    check();
-                                    draw();
-                                    checkmate();
-                                    pos1 = null;
-                                    pos2 = null;
+                                    check();  //check for check
+                                    draw();   //check for draw
+                                    checkmate();  //check for checkmate
+                                    pos1 = null;  //make pos1 to null for next move
+                                    pos2 = null;  //make pos2 to null for next move
                                     turn += 1;
                                     turn = turn % 2;
 
 
                                 } else {
 
-                                    //if black changes initial section
+                                    //repeats the same process above if black changes initial section
                                     if (board[pos2.x][pos2.y].charAt(0) == 'b' && !temp.contains(pos2)) {
                                         pos1 = null;
                                         if (pos1 == null) {
@@ -1091,10 +1085,9 @@ public class Board extends JFrame implements MouseListener {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-                    //white initial selection
+                    //white initial selection for Human vs AI
                     if (pos1 == null) {
                         pos1 = new Point(x - 1, y - 1);
-                        pos1temp = pos1;
 
                         temp = validMoves(pos1, board);
                         killTemp = findKill(pos1, temp);
@@ -1130,7 +1123,6 @@ public class Board extends JFrame implements MouseListener {
 
                         if (board[pos1.x][pos1.y].charAt(0) != 'b') {  ////////////////////////////////////////////////////////////////////
                             pos2 = new Point(x - 1, y - 1);
-                            pos2temp = pos2;
                             j = convertArrayToBoard(pos1);
                             panel.getComponent(j).setBackground(colorAt(pos1));
                             if (temp.contains(pos2)) {
@@ -1143,6 +1135,7 @@ public class Board extends JFrame implements MouseListener {
                                 if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
                                     promotion(pos2);
                                 }
+
 
                                 check();
                                 draw();
@@ -1205,13 +1198,13 @@ public class Board extends JFrame implements MouseListener {
                                                     promotion(pos2);
                                                 }
 
+
                                                 check();
                                                 draw();
                                                 checkmate();
                                                 pos1 = null;
                                                 pos2 = null;
                                                 AIMove(); //AI makes a move
-
 
                                             }
 
@@ -1220,23 +1213,14 @@ public class Board extends JFrame implements MouseListener {
                                         }
                                     }
                                 }
-
                             }
-
                         } else {
                             pos1 = null;
                         }
-
                     }
-
-
                 } //end of AI version
-
-
             } //end of input
-
         }// end of game over
-
     }
 
 

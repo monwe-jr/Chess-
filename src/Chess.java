@@ -21,6 +21,7 @@ public class Chess {
         prompt();
     }
 
+
     /**
      * Prompt menu for chess game
      */
@@ -89,16 +90,12 @@ public class Chess {
                                 @Override
                                 public void run() {
                                     frame.dispose();
-                                    board = new Board(mode,depth);
+                                    board = new Board(mode, depth);
                                 }
                             };
 
                             timer.schedule(task, 1000);
-
-
                         }
-
-
                     };
 
                     button1 = new JButton("Easy");
@@ -117,8 +114,6 @@ public class Chess {
                     frame.setVisible(true);
 
                 }
-
-
             }
         };
 
