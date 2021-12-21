@@ -11,28 +11,29 @@ public class Piece {
     int f = 5;
     int g = 6;
     int h = 7;
-
-
+    //these arrays hold the conditions for en passant
+    static boolean enPassantW[] = new boolean[8];
+    static boolean enPassantB[] = new boolean[8];
     public static String[][] board = new String[8][8];
-
-
+    //these booleans hold the conditions for castling
+    static boolean wRook1 = true;
+    static boolean wRook2 = true;
+    static boolean wKing = true;
+    static boolean bRook1 = true;
+    static boolean bRook2 = true;
+    static boolean bKing = true;
 
     Piece (){
-
         setupBoard(board);
         drawBoard(board);
-
-
     }
-
 
     /**
      * Sets up the starting state of a board
      * @param board the board to be set up
      */
     private void setupBoard(String[][] board) {
-
-
+        
         //Setting up white pieces
         board[a][0] = "wR";
         board[b][0] = "wN";
@@ -95,6 +96,11 @@ public class Piece {
         int y2 = (int)pos2.y;
         String piece = board[x1][y1];
 
+        //set en passant conditions to false
+        for (int i = 0; i<8; i++) {
+            enPassantW[i]=false;
+        }
+
         if (piece == "  " || piece.charAt(0)=='b' ) {
             System.out.println("SELECTION ERROR: White piece was not chosen");
             return false;
@@ -104,6 +110,17 @@ public class Piece {
 
         //move a Pawn
         if (piece == "wP") {
+            //en passant
+            if (y1==4 && y2==5 && x1==x2 && board[x2][y2]=="  " && (enPassantB[x1+1] || enPassantB[x1-1])) {
+                board[x2][y2]=piece;
+                board[x1][y1]="  ";
+                if (enPassantB[x1+1]) {
+                    board[x1+1][y1]="  ";
+                } else {
+                    board[x1-1][y1]="  ";
+                }
+                return true;
+            }
             //if the movement is within same column
             if ( x1 == x2) {
                 //if the movement is within valid range (can only move 2 squares if its on second row)
@@ -112,7 +129,10 @@ public class Piece {
                     if (board[x2][y2]=="  ") {
                         board[x2][y2]=piece;
                         board[x1][y1]="  ";
-
+                        //set value for en passant true on a double move
+                        if (y1 == 1 && y2-y1==2) {
+                            enPassantW[x1]=true;
+                        }
                         return true;
                     } else {
                         System.out.println("ERROR 100: Invalid movement");
@@ -135,6 +155,7 @@ public class Piece {
                     return false;
                 }
             }
+
         }
 
 
@@ -142,6 +163,29 @@ public class Piece {
 
         //move the King
         if (piece == "wK") {
+            //castling
+            if (wRook1 && wKing) {
+                if (board[1][0]=="  " && board[2][0]=="  " && board[3][0]=="  " && board[0][0]=="wR" && y1 == 0 && x1 == 4 && y2 == 0 && x2 == 2) {
+                    if (!check(board,'w')) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        board[0][0]="  ";
+                        board[3][0]="wR";
+                        return true;
+                    }
+                }
+            }
+            if (wRook2 && wKing) {
+                if (board[5][0]=="  " && board[6][0]=="  " && x2==6 && y2==0 && board[7][0]=="wR") {
+                    if (!check(board,'w')) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        board[7][0]="  ";
+                        board[5][0]="wR";
+                        return true;
+                    }
+                }
+            }
             //check if movement is to same spot
             if (x1==x2 && y1==y2) {
                 System.out.println("ERROR 105: Invalid movement");
@@ -184,6 +228,7 @@ public class Piece {
                     if (y1+i == y2) {
                         board[x2][y2]=piece;
                         board[x1][y1]="  ";
+                        //if (y1==0 && x1==0) wRook1=false;
                         return true;
                     }
                     //check for blocking black piece
@@ -587,6 +632,11 @@ public class Piece {
         int y2 = (int)pos2.y;
         String piece = board[x1][y1];
 
+        //set en passant conditions to false
+        for (int i = 0; i<8; i++) {
+            enPassantB[i]=false;
+        }
+
         if (piece == "  " || piece.charAt(0)=='w' ) {
             System.out.println("SELECTION ERROR: Black piece was not chosen");
             return false;
@@ -598,12 +648,26 @@ public class Piece {
         if (piece == "bP") {
             //if the movement is within same column
             if ( x1 == x2) {
+                //en passant
+                if (y1==3 && y2==2 && x1==x2 && board[x2][y2]=="  " && (enPassantW[x1+1] || enPassantW[x1-1])) {
+                    board[x2][y2]=piece;
+                    board[x1][y1]="  ";
+                    if (enPassantW[x1+1]) {
+                        board[x1+1][y1]="  ";
+                    } else {
+                        board[x1-1][y1]="  ";
+                    }
+                    return true;
+                }
                 //if the movement is within valid range (can only move 2 squares if its on second row)
                 if ( y2-y1 == -1 || (y2-y1 == -2 && y1 == 6  && board[x1][y1-1]=="  ")) {
                     //if the space is empty
                     if (board[x2][y2]=="  ") {
                         board[x2][y2]=piece;
                         board[x1][y1]="  ";
+                        if (y1 == 6 && y2-y1==-2) {
+                            enPassantB[x1]=true;
+                        }
                         return true;
                     } else {
                         System.out.println("ERROR 100: Invalid movement");
@@ -629,6 +693,29 @@ public class Piece {
 
         //move the King
         if (piece == "bK") {
+            //castling
+            if (wRook1 && wKing) {
+                if (board[1][7]=="  " && board[2][7]=="  " && board[3][7]=="  " && board[0][7]=="bR" && y1 == 7 && x1 == 4 && y2 == 7 && x2 == 2) {
+                    if (!check(board,'b')) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        board[0][7]="  ";
+                        board[3][7]="bR";
+                        return true;
+                    }
+                }
+            }
+            if (wRook2 && wKing) {
+                if (board[5][7]=="  " && board[6][7]=="  " && x2==6 && y2==7 && board[7][7]=="bR") {
+                    if (!check(board,'b')) {
+                        board[x2][y2]=piece;
+                        board[x1][y1]="  ";
+                        board[7][7]="  ";
+                        board[5][7]="bR";
+                        return true;
+                    }
+                }
+            }
             //check if movement is to same spot
             if (x1==x2 && y1==y2) {
                 System.out.println("ERROR 105: Invalid movement");
@@ -1086,7 +1173,6 @@ public class Piece {
         int x=0;
         int y=0;
 
-
         //look for king, place coordinates in x and y
         for (int i=0; i<8; i++) {
             for (int j=0; j<8; j++) {
@@ -1098,7 +1184,7 @@ public class Piece {
             }
         }
 
-        //This block checks for checks from enemy pawns
+        //This block looks for checks from enemy pawns
         //left
         if (x-1>-1) {
             if ((colour=='w')&&(y+1<8)&&(board[x-1][y+1].equals(pawn)) ) {
@@ -1171,7 +1257,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x-i][y].charAt(0)==colour) {
+            if (board[x-i][y]!="  ") {
                 break;
             }
         }
@@ -1181,7 +1267,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x+i][y].charAt(0)==colour) {
+            if (board[x+i][y]!="  ") {
                 break;
             }
         }
@@ -1191,7 +1277,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x][y+i].charAt(0)==colour) {
+            if (board[x][y+i]!="  ") {
                 break;
             }
         }
@@ -1201,7 +1287,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x][y-i].charAt(0)==colour) {
+            if (board[x][y-i]!="  ") {
                 break;
             }
         }
@@ -1212,7 +1298,7 @@ public class Piece {
             if (board[x+i][y+i].equals(bishop) || board[x+i][y+i].equals(queen)) {
                 return true;
             }
-            if (board[x+i][y+i].charAt(0)==colour) {
+            if (board[x+i][y+i]!="  ") {
                 break;
             }
         }
@@ -1221,7 +1307,7 @@ public class Piece {
             if (board[x-i][y+i].equals(bishop) || board[x-i][y+i].equals(queen)) {
                 return true;
             }
-            if (board[x-i][y+i].charAt(0)==colour) {
+            if (board[x-i][y+i]!="  ") {
                 break;
             }
         }
@@ -1230,7 +1316,7 @@ public class Piece {
             if (board[x+i][y-i].equals(bishop) || board[x+i][y-i].equals(queen)) {
                 return true;
             }
-            if (board[x+i][y-i].charAt(0)==colour) {
+            if (board[x+i][y-i]!="  ") {
                 break;
             }
         }
@@ -1239,7 +1325,7 @@ public class Piece {
             if (board[x-i][y-i].equals(bishop) || board[x-i][y-i].equals(queen)) {
                 return true;
             }
-            if (board[x-i][y-i].charAt(0)==colour) {
+            if (board[x-i][y-i]!="  ") {
                 break;
             }
         }
@@ -1283,31 +1369,34 @@ public class Piece {
         String[][]temp;
         Point pos1;
         Point pos2;
-        //First two layers to loop, to find pieces
-        for (int i=0; i<8; i++) {
-            for (int j=0; j<8; j++) {
-                if (board[i][j].charAt(0)==colour) {
-                    pos1 = new Point(i,j);
+        if (check(board,colour)) {
+            //First two layers to loop, to find pieces
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    if (board[i][j].charAt(0) == colour) {
+                        pos1 = new Point(i, j);
 
-                    //second pair of loop layers look for potential moves
-                    for (int k=0; k<8; k++) {
-                        for (int l=0; l<8;l++) {
-                            pos2 = new Point(k,l);
-                            temp = boardCopy(board);
-                            //checks if this is a valid move
-                            if (colour=='w' && moveWhitePiece(pos1,pos2,temp)) {
-                                return false;
-                            }
-                            if (colour=='b' && moveBlackPiece(pos1,pos2,temp)) {
-                                return false;
+                        //second pair of loop layers look for potential moves
+                        for (int k = 0; k < 8; k++) {
+                            for (int l = 0; l < 8; l++) {
+                                pos2 = new Point(k, l);
+                                temp = boardCopy(board);
+                                //checks if this is a valid move
+                                if (colour == 'w' && moveWhitePiece(pos1, pos2, temp)) {
+                                    return false;
+                                }
+                                if (colour == 'b' && moveBlackPiece(pos1, pos2, temp)) {
+                                    return false;
+                                }
                             }
                         }
                     }
                 }
             }
+            //if no valid moves are found
+            return true;
         }
-        //if no valid moves are found
-        return true;
+        return false;
     }
 
     /**
@@ -1339,8 +1428,5 @@ public class Piece {
         }
         return true;
     }
-
-
-
 }
 
