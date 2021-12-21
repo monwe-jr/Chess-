@@ -514,7 +514,7 @@ public class Board extends JFrame implements MouseListener {
         input = false;
 
         //change to Bishop or Knight
-        if (depth == 1) {
+        if (depth >= 1 && depth <=2) {
             if (random == 0) {
                 board[p.x][p.y] = "bB";
             } else {
@@ -528,7 +528,7 @@ public class Board extends JFrame implements MouseListener {
             input = true;
 
             //change to Rook or Queen
-        } else if (depth == 2) {
+        } else if (depth >= 2 && depth <= 3) {
             if (random == 0) {
                 board[p.x][p.y] = "bR";
             } else {
@@ -543,7 +543,7 @@ public class Board extends JFrame implements MouseListener {
             input = true;
 
             //change to queen
-        } else if (depth == 3) {
+        } else if (depth >=4 ) {
             board[p.x][p.y] = "bQ";
 
             updateGUI(board);

@@ -69,7 +69,7 @@ public class Chess {
                             } else if (e.getSource() == button2) {
                                 depth = 2;
                             } else if (e.getSource() == button3) {
-                                depth = 3;
+                                depth = 4;
                             }
 
 
@@ -77,7 +77,7 @@ public class Chess {
                                 gameMode.setText("Difficulty Selected: " + "Easy");
                             } else if (depth == 2) {
                                 gameMode.setText("Difficulty Selected: " + "Normal");
-                            } else if (depth == 3) {
+                            } else if (depth == 4) {
                                 gameMode.setText("Difficulty Selected: " + "Hard");
                             }
 

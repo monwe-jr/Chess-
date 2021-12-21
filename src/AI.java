@@ -196,7 +196,6 @@ public class AI {
                     }
 
                     alpha = Math.max(alpha, value);
-
                     if (beta <= alpha) {
                         break;
                     }
