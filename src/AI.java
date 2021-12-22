@@ -1,6 +1,17 @@
 import java.awt.*;
 import java.util.ArrayList;
 
+/**
+ * 3p71 Term Project: Chess
+ *
+ * Francis Monwe
+ * 6724355
+ *
+ * Jashandeep Pannu
+ * 6505861
+ *
+ * This class implements the majority of the AI's implementation
+ */
 
 @SuppressWarnings({"StringEquality", "IfStatementWithIdenticalBranches", "AccessStaticViaInstance"})
 public class AI {

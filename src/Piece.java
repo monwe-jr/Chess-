@@ -1,10 +1,22 @@
 import java.awt.*;
 
+/**
+ * 3p71 Term Project: Chess
+ *
+ * Francis Monwe
+ * 6724355
+ *
+ * Jashandeep Pannu
+ * 6505861
+ *
+ * This class implements the majority of the chess game's logic
+ */
+
 public class Piece {
 
     //these arrays hold the conditions for en passant
-    static boolean enPassantW[] = new boolean[8];
-    static boolean enPassantB[] = new boolean[8];
+    static boolean[] enPassantW = new boolean[8];
+    static boolean[] enPassantB = new boolean[8];
     public static String[][] board = new String[8][8];
     //these booleans hold the conditions for castling
 
@@ -59,8 +71,8 @@ public class Piece {
         //Draw updated board for players
         for (int i=7; i>-1;i--){
             System.out.println("-----------------------------------------");
-            for (int j=0; j<in.length; j++) {
-                System.out.print("| "+in[j][i]+" ");
+            for (String[] strings : in) {
+                System.out.print("| " + strings[i] + " ");
             }
             System.out.println("| "+(i+1));
         }
@@ -73,15 +85,16 @@ public class Piece {
      * @param pos1 position of pieces that needs to be moved
      * @param pos2 position
      * @param board board where movement takes place
+     * @param move whether or not the piece should actually be removed on the given board
      */
     static public boolean moveWhitePiece(Point pos1, Point pos2, String[][]board,boolean move) {
-        int x1 = (int)pos1.x;
-        int x2 = (int)pos2.x;
-        int y1 = (int)pos1.y;
-        int y2 = (int)pos2.y;
+        int x1 = pos1.x;
+        int x2 = pos2.x;
+        int y1 = pos1.y;
+        int y2 = pos2.y;
         String piece = board[x1][y1];
 
-        if (piece == "  " || piece.charAt(0)=='b' || piece.charAt(0)!='w' ) {
+        if (piece.equals("  ") || piece.charAt(0)=='b' || piece.charAt(0)!='w' ) {
             //System.out.println("SELECTION ERROR: White piece was not chosen");
             return false;
         }
@@ -94,9 +107,9 @@ public class Piece {
         if (moveCheck(board,x1,y1,x2,y2,'w')) return false;
 
         //move a Pawn
-        if (piece == "wP") {
+        if (piece.equals("wP")) {
             //en passant
-            if (y1==4 && y2==5 && x1==x2 && board[x2][y2]=="  " && (enPassantB[x1+1] || enPassantB[x1-1])) {
+            if (y1==4 && y2==5 && x1==x2 && board[x2][y2].equals("  ") && (enPassantB[x1+1] || enPassantB[x1-1])) {
                 if(move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
@@ -111,9 +124,9 @@ public class Piece {
             //if the movement is within same column
             if ( x1 == x2) {
                 //if the movement is within valid range (can only move 2 squares if its on second row)
-                if ( y2-y1 == 1 || (y2-y1 == 2 && y1 == 1 && board[x1][y1+1]=="  ")) {
+                if ( y2-y1 == 1 || (y2-y1 == 2 && y1 == 1 && board[x1][y1 + 1].equals("  "))) {
                     //if the space is empty
-                    if (board[x2][y2]=="  ") {
+                    if (board[x2][y2].equals("  ")) {
                         if (move) {
                             board[x2][y2] = piece;
                             board[x1][y1] = "  ";
@@ -150,9 +163,9 @@ public class Piece {
         }
 
         //move the King
-        if (piece == "wK") {
+        if (piece.equals("wK")) {
             //castling
-            if (board[1][0]=="  " && board[2][0]=="  " && board[3][0]=="  " && board[0][0]=="wR" && y1 == 0 && x1 == 4 && y2 == 0 && x2 == 2) {
+            if (board[1][0].equals("  ") && board[2][0].equals("  ") && board[3][0].equals("  ") && board[0][0].equals("wR") && y1 == 0 && x1 == 4 && y2 == 0 && x2 == 2) {
                 if (!check(board,'w')) {
                     if (move) {
                         board[x2][y2] = piece;
@@ -163,7 +176,7 @@ public class Piece {
                     return true;
                 }
             }
-            if (board[5][0]=="  " && board[6][0]=="  " && x2==6 && y2==0 && board[7][0]=="wR") {
+            if (board[5][0].equals("  ") && board[6][0].equals("  ") && x2==6 && y2==0 && board[7][0].equals("wR")) {
                 if (!check(board,'w')) {
                     if (move) {
                         board[x2][y2] = piece;
@@ -182,7 +195,7 @@ public class Piece {
             //check range of movement
             if ((x2-x1==1 || x2==x1 || x2-x1==-1)&&(y2-y1==1 || y2==y1 || y2-y1==-1)) {
                 //check if space is empty or if there's a black piece
-                if (board[x2][y2]=="  " || board[x2][y2].charAt(0)=='b') {
+                if (board[x2][y2].equals("  ") || board[x2][y2].charAt(0)=='b') {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
@@ -199,7 +212,7 @@ public class Piece {
         }
 
         //Rook
-        if (piece=="wR") {
+        if (piece.equals("wR")) {
             //check if movement is in same spot and if it is either exclusively vertical or horizontal
             if ((x1==x2 && y1==y2)&&!(y1==y2 || x1==x2)) {
                 //System.out.println("ERROR 108: Invalid movement");
@@ -306,7 +319,7 @@ public class Piece {
         }
 
         //Bishop
-        if (piece=="wB") {
+        if (piece.equals("wB")) {
             //Error if movement is within same column or row
             if (y1==y2 || x1==x2) {
                 //System.out.println("ERROR 112: Invalid movement");
@@ -411,7 +424,7 @@ public class Piece {
         }
 
         //Queen
-        if (piece=="wQ") {
+        if (piece.equals("wQ")) {
             //if movement is upwards
             if (y2-y1 > 0 && x1==x2) {
                 //loop up each tile
@@ -607,7 +620,7 @@ public class Piece {
         }
 
         //Knight
-        if (piece == "wN") {
+        if (piece.equals("wN")) {
             //upwards
             if ((y2==y1+2 && (x1==x2-1 || x1==x2+1))&&!(board[x2][y2].charAt(0)=='w')) {
                 if (move) {
@@ -653,15 +666,16 @@ public class Piece {
      * @param pos1 position of pieces that needs to be moved
      * @param pos2 position
      * @param board board where movement takes place
+     * @param move whether or not the piece should actually be removed on the given board
      */
     static public boolean moveBlackPiece(Point pos1, Point pos2, String[][]board, boolean move) {
-        int x1 = (int)pos1.x;
-        int x2 = (int)pos2.x;
-        int y1 = (int)pos1.y;
-        int y2 = (int)pos2.y;
+        int x1 = pos1.x;
+        int x2 = pos2.x;
+        int y1 = pos1.y;
+        int y2 = pos2.y;
         String piece = board[x1][y1];
 
-        if (piece == "  " || piece.charAt(0)=='w' || piece.charAt(0)!='b' ) {
+        if (piece.equals("  ") || piece.charAt(0)=='w' || piece.charAt(0)!='b' ) {
             //System.out.println("SELECTION ERROR: Black piece was not chosen");
             return false;
         }
@@ -675,11 +689,11 @@ public class Piece {
         if (moveCheck(board,x1,y1,x2,y2,'b')) return false;
 
         //move a Pawn
-        if (piece == "bP") {
+        if (piece.equals("bP")) {
             //if the movement is within same column
             if ( x1 == x2) {
                 //en passant
-                if (y1==3 && y2==2 && x1==x2 && board[x2][y2]=="  " && (enPassantW[x1+1] || enPassantW[x1-1])) {
+                if (y1==3 && y2==2 && x1==x2 && board[x2][y2].equals("  ") && (enPassantW[x1+1] || enPassantW[x1-1])) {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
@@ -692,9 +706,9 @@ public class Piece {
                     return true;
                 }
                 //if the movement is within valid range (can only move 2 squares if its on second row)
-                if ( y2-y1 == -1 || (y2-y1 == -2 && y1 == 6  && board[x1][y1-1]=="  ")) {
+                if ( y2-y1 == -1 || (y2-y1 == -2 && y1 == 6  && board[x1][y1 - 1].equals("  "))) {
                     //if the space is empty
-                    if (board[x2][y2]=="  ") {
+                    if (board[x2][y2].equals("  ")) {
                         if (move) {
                             board[x2][y2] = piece;
                             board[x1][y1] = "  ";
@@ -728,9 +742,9 @@ public class Piece {
         }
 
         //move the King
-        if (piece == "bK") {
+        if (piece.equals("bK")) {
             //castling
-            if (board[1][7]=="  " && board[2][7]=="  " && board[3][7]=="  " && board[0][7]=="bR" && y1 == 7 && x1 == 4 && y2 == 7 && x2 == 2) {
+            if (board[1][7].equals("  ") && board[2][7].equals("  ") && board[3][7].equals("  ") && board[0][7].equals("bR") && y1 == 7 && x1 == 4 && y2 == 7 && x2 == 2) {
                 if (!check(board,'b')) {
                     if (move) {
                         board[x2][y2] = piece;
@@ -741,7 +755,7 @@ public class Piece {
                     return true;
                 }
             }
-            if (board[5][7]=="  " && board[6][7]=="  " && x2==6 && y2==7 && board[7][7]=="bR") {
+            if (board[5][7].equals("  ") && board[6][7].equals("  ") && x2==6 && y2==7 && board[7][7].equals("bR")) {
                 if (!check(board,'b')) {
                     if (move) {
                         board[x2][y2] = piece;
@@ -759,7 +773,7 @@ public class Piece {
             //check range of movement
             if ((x2-x1==1 || x2==x1 || x2-x1==-1)&&(y2-y1==1 || y2==y1 || y2-y1==-1)) {
                 //check if space is empty or if there's a black piece
-                if (board[x2][y2]=="  " || board[x2][y2].charAt(0)=='w') {
+                if (board[x2][y2].equals("  ") || board[x2][y2].charAt(0)=='w') {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
@@ -776,9 +790,9 @@ public class Piece {
         }
 
         //Rook
-        if (piece=="bR") {
+        if (piece.equals("bR")) {
             //check if movement is in same spot and if it is either exclusively vertical or horizontal
-            if ((x1==x2 && y1==y2)&&!(y1==y2 || x1==x2)) {
+            if ((x1==x2 && y1==y2)||!(y1==y2 || x1==x2)) {
                 //System.out.println("ERROR 108: Invalid movement");
                 return false;
             }
@@ -883,7 +897,7 @@ public class Piece {
         }
 
         //Bishop
-        if (piece=="bB") {
+        if (piece.equals("bB")) {
             //Error if movement is within same column or row
             if (y1==y2 || x1==x2) {
                 //System.out.println("ERROR 112: Invalid movement");
@@ -988,7 +1002,7 @@ public class Piece {
         }
 
         //Queen
-        if (piece=="bQ") {
+        if (piece.equals("bQ")) {
             //if movement is upwards
             if (y2-y1 > 0 && x1==x2) {
                 //loop up each tile
@@ -1184,7 +1198,7 @@ public class Piece {
         }
 
         //Knight
-        if (piece == "bN") {
+        if (piece.equals("bN")) {
             //upwards
             if ((y2==y1+2 && (x1==x2-1 || x1==x2+1))&&!(board[x2][y2].charAt(0)=='b')) {
                 if (move) {
@@ -1233,18 +1247,18 @@ public class Piece {
      */
     static public boolean check(String[][] board, char colour) {
         //Setting up string of enemy pieces, based on received colour paramater
-        String king = new StringBuilder().append(colour).append("K").toString();
+        String king = colour + "K";
         char opposite;
         if (colour=='w') {
             opposite = 'b';
         } else {
             opposite = 'w';
         }
-        String knight = new StringBuilder().append(opposite).append("N").toString();
-        String queen = new StringBuilder().append(opposite).append("Q").toString();
-        String rook = new StringBuilder().append(opposite).append("R").toString();
-        String bishop = new StringBuilder().append(opposite).append("B").toString();
-        String pawn = new StringBuilder().append(opposite).append("P").toString();
+        String knight = opposite + "N";
+        String queen = opposite + "Q";
+        String rook = opposite + "R";
+        String bishop = opposite + "B";
+        String pawn = opposite + "P";
         //Setting up x and y which will hold king's location. -1 set for later break condition.
         int x=0;
         int y=0;
@@ -1333,7 +1347,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x-i][y]!="  ") {
+            if (!board[x - i][y].equals("  ")) {
                 break;
             }
         }
@@ -1343,7 +1357,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x+i][y]!="  ") {
+            if (!board[x + i][y].equals("  ")) {
                 break;
             }
         }
@@ -1353,7 +1367,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x][y+i]!="  ") {
+            if (!board[x][y + i].equals("  ")) {
                 break;
             }
         }
@@ -1363,7 +1377,7 @@ public class Piece {
                 return true;
             }
             //break if blocked by own colour
-            if (board[x][y-i]!="  ") {
+            if (!board[x][y - i].equals("  ")) {
                 break;
             }
         }
@@ -1374,7 +1388,7 @@ public class Piece {
             if (board[x+i][y+i].equals(bishop) || board[x+i][y+i].equals(queen)) {
                 return true;
             }
-            if (board[x+i][y+i]!="  ") {
+            if (!board[x + i][y + i].equals("  ")) {
                 break;
             }
         }
@@ -1383,7 +1397,7 @@ public class Piece {
             if (board[x-i][y+i].equals(bishop) || board[x-i][y+i].equals(queen)) {
                 return true;
             }
-            if (board[x-i][y+i]!="  ") {
+            if (!board[x - i][y + i].equals("  ")) {
                 break;
             }
         }
@@ -1392,7 +1406,7 @@ public class Piece {
             if (board[x+i][y-i].equals(bishop) || board[x+i][y-i].equals(queen)) {
                 return true;
             }
-            if (board[x+i][y-i]!="  ") {
+            if (!board[x + i][y - i].equals("  ")) {
                 break;
             }
         }
@@ -1401,7 +1415,7 @@ public class Piece {
             if (board[x-i][y-i].equals(bishop) || board[x-i][y-i].equals(queen)) {
                 return true;
             }
-            if (board[x-i][y-i]!="  ") {
+            if (!board[x - i][y - i].equals("  ")) {
                 break;
             }
         }
@@ -1428,10 +1442,7 @@ public class Piece {
 
         copy[x2][y2]=copy[x1][y1];
         copy[x1][y1]="  ";
-        if (check(copy,colour)) {
-            return true;
-        }
-        return false;
+        return check(copy, colour);
     }
 
     /**

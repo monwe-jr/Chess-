@@ -5,6 +5,19 @@ import java.awt.event.ActionListener;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * 3p71 Term Project: Chess
+ *
+ * Francis Monwe
+ * 6724355
+ *
+ * Jashandeep Pannu
+ * 6505861
+ * 
+ * This is the main class
+ * It implements and run the entire program as well as handling a portion of the GUI components and conditions
+ */
+
 public class Chess {
     Board board;
     Timer timer = new Timer();
@@ -67,7 +80,7 @@ public class Chess {
                             if (e.getSource() == button1) {
                                 depth = 1;
                             } else if (e.getSource() == button2) {
-                                depth = 2;
+                                depth = 3;
                             } else if (e.getSource() == button3) {
                                 depth = 4;
                             }
