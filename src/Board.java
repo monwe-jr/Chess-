@@ -6,17 +6,6 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/**
- * 3p71 Term Project: Chess
- *
- * Francis Monwe
- * 6724355
- *
- * Jashandeep Pannu
- * 6505861
- *
- * This class implements the majority of the GUI and visual program
- */
 
 @SuppressWarnings({"StringEquality", "ConstantConditions", "unused", "AccessStaticViaInstance"})
 public class Board extends JFrame implements MouseListener {
