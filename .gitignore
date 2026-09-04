@@ -1,5 +1,10 @@
 # Compiled Java class files
 *.class
 
-# VS Code files
+# Maven build output
+target/
+
+# IDE files
 .vscode
+.idea/
+*.iml
