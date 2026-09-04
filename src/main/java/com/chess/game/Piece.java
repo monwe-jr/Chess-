@@ -117,8 +117,10 @@ public class Piece {
             return false;
         }
 
-        for (int i = 0; i < 8; i++) {
-            enPassantW[i] = false;
+        if (move) {
+            for (int i = 0; i < 8; i++) {
+                enPassantW[i] = false;
+            }
         }
 
         if (moveCheck(board, x1, y1, x2, y2, 'w')) return false;
