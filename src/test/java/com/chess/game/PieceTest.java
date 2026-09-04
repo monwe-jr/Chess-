@@ -186,17 +186,43 @@ class PieceTest {
     }
 
     @Test
-    void enPassantRightExpiresAfterOneMove() {
+    void enPassantRightExpiresOnceBlackMovesAgain() {
+        // The en passant window is exactly White's one reply to Black's
+        // double-step; by the time Black has moved again (which, given
+        // strict turn alternation, is necessarily after that reply), the
+        // right must no longer be usable.
         String[][] board = emptyBoard();
         board[4][4] = "wP";
         board[3][6] = "bP";
         board[0][1] = "wP";
+        board[6][7] = "bN";
         board[4][0] = "wK";
         board[4][7] = "bK";
 
         assertTrue(Piece.moveBlackPiece(new Point(3, 6), new Point(3, 4), board, true)); // d7-d5
-        assertTrue(Piece.moveWhitePiece(new Point(0, 1), new Point(0, 2), board, true)); // unrelated move
+        assertTrue(Piece.moveWhitePiece(new Point(0, 1), new Point(0, 2), board, true)); // White declines the capture
+        assertTrue(Piece.moveBlackPiece(new Point(6, 7), new Point(5, 5), board, true)); // Black plays on, Ng8-f6
         assertFalse(Piece.moveWhitePiece(new Point(4, 4), new Point(3, 5), board, false), "en passant right should have expired");
+    }
+
+    @Test
+    void speculativeLegalityScansDoNotEraseAPendingEnPassantRight() {
+        // Regression test: Board.checkmate() calls Piece.checkmate() after
+        // every move, which scans a side's own legal moves by calling
+        // moveWhitePiece/moveBlackPiece with move=false many times. That
+        // read-only scanning must never mutate the en passant flags, or a
+        // just-created en passant opportunity would be wiped out before the
+        // opponent's turn even starts.
+        Piece pieceSetup = new Piece();
+        String[][] board = Piece.board;
+
+        assertTrue(Piece.moveWhitePiece(new Point(4, 1), new Point(4, 3), board, true)); // e2-e4
+        assertTrue(Piece.enPassantW[4]);
+
+        Piece.checkmate(board, 'w'); // simulates Board.checkmate()'s post-move scan
+        Piece.checkmate(board, 'b');
+
+        assertTrue(Piece.enPassantW[4], "read-only legality scans must not clear pending en passant flags");
     }
 
     // --- pawn promotion eligibility ---
