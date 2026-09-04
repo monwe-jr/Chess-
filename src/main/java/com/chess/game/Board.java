@@ -1,13 +1,14 @@
 package com.chess.game;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * 3p71 Term Project: Chess
@@ -15,1254 +16,657 @@ import java.util.TimerTask;
  * Francis Monwe
  * Jashandeep Pannu
  *
- * The game window: renders the board, turns mouse clicks into moves via
- * {@link Piece}, and drives the AI opponent via {@link AI} when playing
- * Human vs AI. Also owns end-of-game UI (check highlight, checkmate/draw
- * screens) and pawn promotion prompts.
+ * The game panel: renders the board and side panel (turn indicator, captured
+ * pieces, move log), turns clicks into moves via {@link Piece}, and drives
+ * the AI opponent via {@link AI} in Human vs AI mode.
  *
- * Click handling is a small state machine per side: the first click on one
- * of the player's own pieces selects it and highlights its legal
- * destinations (computed via {@link Piece#moveWhitePiece}/
- * {@link Piece#moveBlackPiece} called in "check only" mode); the second
- * click either plays the move if it's a highlighted destination, or -- if
- * it's another of the player's own pieces -- reselects. The Human vs Human
- * and Human vs AI cases are handled as separate (near-identical) branches
- * because turn ownership and what happens after a move differs (Human vs
- * Human alternates {@code turn}; Human vs AI always triggers {@link #AIMove()}
- * after White moves).
+ * Click handling is one small state machine driven by {@link #sideToMove}
+ * rather than by which mode is active: a first click on a piece belonging to
+ * {@code sideToMove} selects it and highlights its legal destinations
+ * (computed via {@link Piece#moveWhitePiece}/{@link Piece#moveBlackPiece} in
+ * "check only" mode); a second click either plays the move if it's a
+ * highlighted destination, reselects if it's another of the side's own
+ * pieces, or is otherwise ignored. This same state machine plays both human
+ * moves (from mouse clicks) and AI moves (from {@link #AIMove()}), which is
+ * what makes supporting either side being human or AI-controlled
+ * straightforward: {@link #humanColor} only gates *whose clicks are
+ * accepted*, not how a move is validated or applied.
  */
-public class Board extends JFrame implements MouseListener {
-    AI bot;
-    Point pos1; //initial position
-    Point pos2; //selected position
-    ArrayList<Point> temp; //holds potential moves of pos1
-    ArrayList<Point> killTemp; //holds potential kills of pos1
-    boolean input; //used to disable user input
-    public String mode;  //mode of game
-    public int depth;  //minimax depth
-    int turn; //turn
-    boolean gameOver; //game over
-    boolean stopAI;  //stops the AI from making a move if true
-    Piece pieces = new Piece();
-    String[][] board = pieces.board;  //2D array that represents the state of the game
-    JFrame frame = new JFrame("Chess");
-    JPanel panel = new JPanel(new GridLayout(8, 8));  //initializes JPanel layout
-    Timer timer = new Timer();
-    Random num = new Random();
-    Point bKing; //location of black king
-    Point wKing; //location of white king
+public class Board extends JPanel implements MouseListener {
 
-    ImageIcon pawnW = loadIcon("pawnW.png");
-    ImageIcon pawnB = loadIcon("pawnB.png");
-    ImageIcon rookW = loadIcon("rookW.png");
-    ImageIcon rookB = loadIcon("rookB.png");
-    ImageIcon knightW = loadIcon("knightW.png");
-    ImageIcon knightB = loadIcon("knightB.png");
-    ImageIcon bishopW = loadIcon("bishopW.png");
-    ImageIcon bishopB = loadIcon("bishopB.png");
-    ImageIcon queenW = loadIcon("queenW.png");
-    ImageIcon queenB = loadIcon("queenB.png");
-    ImageIcon kingW = loadIcon("kingW.png");
-    ImageIcon kingB = loadIcon("kingB.png");
+    // --- visual palette ---
+    private static final Color LIGHT_SQUARE = UiTheme.LIGHT_SQUARE;
+    private static final Color DARK_SQUARE = UiTheme.DARK_SQUARE;
+    private static final Color PANEL_BG = UiTheme.PANEL_BG;
+    private static final Color PANEL_FG = UiTheme.PANEL_FG;
+    private static final Color ACCENT = UiTheme.ACCENT;
+    private static final Color BOARD_FRAME_BG = UiTheme.BOARD_FRAME_BG;
+    private static final Font UI_FONT = UiTheme.UI_FONT;
+    private static final Font UI_FONT_BOLD = UiTheme.UI_FONT_BOLD;
+
+    private static final String CARD_GAMEPLAY = "gameplay";
+    private static final String CARD_PROMOTION = "promotion";
+    private static final String CARD_GAMEOVER = "gameover";
+
+    AI bot;
+    public String mode;              // "Human" or "AI"
+    public int depth;                // minimax search depth (AI difficulty)
+    private final char humanColor;   // side the human plays in "AI" mode; irrelevant in "Human" mode
+    private final char aiColor;      // opposite of humanColor, only used in "AI" mode
+    private final boolean flipped;   // true when the human plays Black: render Black at the bottom
+
+    char sideToMove = 'w';           // chess always starts with White to move
+    private boolean gameOver;
+    private boolean input = true;    // false while a promotion choice is pending
+
+    private Point pos1;              // currently selected square, or null
+    private List<Point> legalMoves = new ArrayList<>();
+    private List<Point> legalCaptures = new ArrayList<>();
+    private Point lastMoveFrom;
+    private Point lastMoveTo;
+    private Point wKing;
+    private Point bKing;
+    private Point pendingPromotion;
+
+    private final Piece pieces = new Piece();
+    final String[][] board = pieces.board;
+    final SquarePanel[][] squares = new SquarePanel[8][8];
+    private final Random random = new Random();
+
+    private final CardLayout rootLayout = new CardLayout();
+    private JLabel turnLabel;
+    private JPanel capturedByWhiteRow;
+    private JPanel capturedByBlackRow;
+    private DefaultListModel<String> moveLogModel;
+    private int fullMoveNumber = 1;
+    private final List<String> capturedByWhite = new ArrayList<>();
+    private final List<String> capturedByBlack = new ArrayList<>();
+
+    private JPanel gameOverPanel;
+    private JLabel gameOverMessage;
+    private JPanel promotionPanel;
+    private JLabel promotionPrompt;
+
+    private Runnable onRestart = () -> {
+    };
+    private Runnable onExit = () -> System.exit(0);
+
+    private final ImageIcon pawnW = loadIcon("pawnW.png");
+    private final ImageIcon pawnB = loadIcon("pawnB.png");
+    private final ImageIcon rookW = loadIcon("rookW.png");
+    private final ImageIcon rookB = loadIcon("rookB.png");
+    private final ImageIcon knightW = loadIcon("knightW.png");
+    private final ImageIcon knightB = loadIcon("knightB.png");
+    private final ImageIcon bishopW = loadIcon("bishopW.png");
+    private final ImageIcon bishopB = loadIcon("bishopB.png");
+    private final ImageIcon queenW = loadIcon("queenW.png");
+    private final ImageIcon queenB = loadIcon("queenB.png");
+    private final ImageIcon kingW = loadIcon("kingW.png");
+    private final ImageIcon kingB = loadIcon("kingB.png");
 
     /**
      * Loads a piece image bundled on the classpath under {@code /images/}
      * (packaged into the jar via {@code src/main/resources/images}), rather
      * than a relative file path, so the game runs the same whether launched
      * from an IDE, a random working directory, or a double-clicked jar.
-     *
-     * @param name image file name, e.g. {@code "pawnW.png"}
      */
     private static ImageIcon loadIcon(String name) {
         return new ImageIcon(Objects.requireNonNull(Board.class.getResource("/images/" + name),
                 "Missing bundled resource: /images/" + name));
     }
 
-    Board(String m) {
-        this.mode = m;
+    /** Human vs Human: both sides are human-controlled, board is never flipped. */
+    public Board(String mode) {
+        this(mode, 0, 'w');
+    }
 
-        gameOver = false;
-        input = true;
-        turn = 0;
-        createBoard();
-        updateGUI(board);
-        frame.addMouseListener(this);
-        frame.setSize(900, 900);
-        frame.add(panel);
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setVisible(true);
+    /** Human vs AI: {@code humanColor} is the side the human plays. */
+    public Board(String mode, int depth, char humanColor) {
+        this.mode = mode;
+        this.depth = depth;
+        this.humanColor = humanColor;
+        this.aiColor = humanColor == 'w' ? 'b' : 'w';
+        this.flipped = mode.equals("AI") && humanColor == 'b';
+        if (mode.equals("AI")) {
+            bot = new AI();
+        }
 
+        buildUi();
+        updateGui();
 
-    }//constructor for human vs human
+        if (mode.equals("AI") && sideToMove == aiColor) {
+            AIMove();
+        }
+    }
 
+    void setOnRestart(Runnable onRestart) {
+        this.onRestart = onRestart;
+    }
 
-    Board(String m, int d) {
-        this.mode = m;
-        this.depth = d;
-        bot = new AI();
-        gameOver = false;
-        input = true;
-        turn = 0;
-        createBoard();
-        updateGUI(board);
-        frame.addMouseListener(this);
-        frame.setSize(900, 900);
-        frame.add(panel);
-        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setVisible(true);
+    void setOnExit(Runnable onExit) {
+        this.onExit = onExit;
+    }
 
+    // --- UI construction ---
 
-    }//constructor for human vs AI
+    private void buildUi() {
+        setLayout(rootLayout);
+        setBackground(PANEL_BG);
 
+        JPanel gameplay = new JPanel(new BorderLayout(12, 12));
+        gameplay.setBackground(PANEL_BG);
+        gameplay.setBorder(new EmptyBorder(12, 12, 12, 12));
+        gameplay.add(buildBoardWithCoordinates(), BorderLayout.CENTER);
+        gameplay.add(buildSidePanel(), BorderLayout.EAST);
 
-    /**
-     * Creates initial grid
-     */
-    private void createBoard() {
-        int c = 0;
-        int k = 0;
+        add(gameplay, CARD_GAMEPLAY);
+        add(buildPromotionCard(), CARD_PROMOTION);
+        add(buildGameOverCard(), CARD_GAMEOVER);
+        rootLayout.show(this, CARD_GAMEPLAY);
+    }
 
+    private JPanel buildBoardWithCoordinates() {
+        JPanel grid = new JPanel(new GridLayout(8, 8));
+        grid.setBackground(BOARD_FRAME_BG);
+
+        for (int screenRow = 0; screenRow < 8; screenRow++) {
+            for (int screenCol = 0; screenCol < 8; screenCol++) {
+                int x = flipped ? 7 - screenCol : screenCol;
+                int y = flipped ? screenRow : 7 - screenRow;
+                Color base = (x + y) % 2 == 0 ? DARK_SQUARE : LIGHT_SQUARE;
+                SquarePanel square = new SquarePanel(x, y, base);
+                square.addMouseListener(this);
+                squares[x][y] = square;
+                grid.add(square);
+            }
+        }
+
+        JPanel framed = new JPanel(new BorderLayout());
+        framed.setBackground(BOARD_FRAME_BG);
+        framed.setBorder(new EmptyBorder(6, 6, 6, 6));
+        framed.add(fileLabels(), BorderLayout.NORTH);
+        framed.add(fileLabels(), BorderLayout.SOUTH);
+        framed.add(rankLabels(), BorderLayout.WEST);
+        framed.add(rankLabels(), BorderLayout.EAST);
+        framed.add(grid, BorderLayout.CENTER);
+        return framed;
+    }
+
+    private JPanel fileLabels() {
+        JPanel row = new JPanel(new GridLayout(1, 8));
+        row.setBackground(BOARD_FRAME_BG);
+        for (int i = 0; i < 8; i++) {
+            int file = flipped ? 7 - i : i;
+            row.add(coordinateLabel(String.valueOf((char) ('a' + file))));
+        }
+        return row;
+    }
+
+    private JPanel rankLabels() {
+        JPanel col = new JPanel(new GridLayout(8, 1));
+        col.setBackground(BOARD_FRAME_BG);
+        for (int i = 0; i < 8; i++) {
+            int rank = flipped ? i + 1 : 8 - i;
+            col.add(coordinateLabel(String.valueOf(rank)));
+        }
+        return col;
+    }
+
+    private JLabel coordinateLabel(String text) {
+        JLabel label = new JLabel(text, SwingConstants.CENTER);
+        label.setForeground(ACCENT);
+        label.setFont(UI_FONT);
+        label.setBorder(new EmptyBorder(2, 4, 2, 4));
+        return label;
+    }
+
+    private JPanel buildSidePanel() {
+        JPanel side = new JPanel();
+        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
+        side.setBackground(PANEL_BG);
+        side.setBorder(new EmptyBorder(4, 12, 4, 4));
+        side.setPreferredSize(new Dimension(240, 0));
+
+        turnLabel = new JLabel();
+        turnLabel.setFont(UI_FONT_BOLD);
+        turnLabel.setForeground(PANEL_FG);
+        turnLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        updateTurnLabel();
+
+        JLabel capturedByWhiteTitle = sectionTitle("Captured by White");
+        capturedByWhiteRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        capturedByWhiteRow.setBackground(PANEL_BG);
+        capturedByWhiteRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel capturedByBlackTitle = sectionTitle("Captured by Black");
+        capturedByBlackRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        capturedByBlackRow.setBackground(PANEL_BG);
+        capturedByBlackRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel moveLogTitle = sectionTitle("Moves");
+        moveLogModel = new DefaultListModel<>();
+        JList<String> moveLogList = new JList<>(moveLogModel);
+        moveLogList.setFont(UI_FONT);
+        moveLogList.setBackground(new Color(0x22, 0x22, 0x22));
+        moveLogList.setForeground(PANEL_FG);
+        JScrollPane moveLogScroll = new JScrollPane(moveLogList);
+        moveLogScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        moveLogScroll.setBorder(BorderFactory.createLineBorder(ACCENT.darker()));
+
+        side.add(turnLabel);
+        side.add(Box.createVerticalStrut(16));
+        side.add(capturedByWhiteTitle);
+        side.add(capturedByWhiteRow);
+        side.add(Box.createVerticalStrut(10));
+        side.add(capturedByBlackTitle);
+        side.add(capturedByBlackRow);
+        side.add(Box.createVerticalStrut(16));
+        side.add(moveLogTitle);
+        side.add(moveLogScroll);
+        return side;
+    }
+
+    private JLabel sectionTitle(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(UI_FONT_BOLD);
+        label.setForeground(ACCENT);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return label;
+    }
+
+    private JPanel buildPromotionCard() {
+        promotionPanel = new JPanel();
+        promotionPanel.setLayout(new BoxLayout(promotionPanel, BoxLayout.Y_AXIS));
+        promotionPanel.setBackground(PANEL_BG);
+        promotionPrompt = new JLabel("Choose a promotion", SwingConstants.CENTER);
+        promotionPrompt.setFont(UI_FONT_BOLD.deriveFont(20f));
+        promotionPrompt.setForeground(PANEL_FG);
+        promotionPrompt.setAlignmentX(Component.CENTER_ALIGNMENT);
+        promotionPanel.add(Box.createVerticalGlue());
+        promotionPanel.add(promotionPrompt);
+        promotionPanel.add(Box.createVerticalStrut(20));
+        promotionPanel.add(Box.createVerticalGlue());
+        return promotionPanel;
+    }
+
+    private JPanel buildGameOverCard() {
+        gameOverPanel = new JPanel();
+        gameOverPanel.setLayout(new BoxLayout(gameOverPanel, BoxLayout.Y_AXIS));
+        gameOverPanel.setBackground(PANEL_BG);
+
+        gameOverMessage = new JLabel("", SwingConstants.CENTER);
+        gameOverMessage.setFont(UI_FONT_BOLD.deriveFont(28f));
+        gameOverMessage.setForeground(PANEL_FG);
+        gameOverMessage.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton resetButton = styledButton("New Game");
+        resetButton.addActionListener(e -> onRestart.run());
+        JButton exitButton = styledButton("Exit");
+        exitButton.addActionListener(e -> onExit.run());
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
+        buttons.setBackground(PANEL_BG);
+        buttons.add(resetButton);
+        buttons.add(exitButton);
+        buttons.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        gameOverPanel.add(Box.createVerticalGlue());
+        gameOverPanel.add(gameOverMessage);
+        gameOverPanel.add(Box.createVerticalStrut(24));
+        gameOverPanel.add(buttons);
+        gameOverPanel.add(Box.createVerticalGlue());
+        return gameOverPanel;
+    }
+
+    static JButton styledButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(UI_FONT_BOLD);
+        button.setBackground(ACCENT);
+        button.setForeground(Color.BLACK);
+        button.setFocusPainted(false);
+        button.setBorder(new EmptyBorder(10, 22, 10, 22));
+        return button;
+    }
+
+    // --- rendering ---
+
+    private void updateGui() {
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                String piece = board[x][y];
+                squares[x][y].setPieceImage(piece.equals("  ") ? null : iconFor(piece).getImage());
+                if (piece.equals("wK")) wKing = new Point(x, y);
+                if (piece.equals("bK")) bKing = new Point(x, y);
+            }
+        }
+        refreshHighlights();
+        updateTurnLabel();
+    }
+
+    private ImageIcon iconFor(String code) {
+        return switch (code) {
+            case "wP" -> pawnW;
+            case "bP" -> pawnB;
+            case "wR" -> rookW;
+            case "bR" -> rookB;
+            case "wN" -> knightW;
+            case "bN" -> knightB;
+            case "wB" -> bishopW;
+            case "bB" -> bishopB;
+            case "wQ" -> queenW;
+            case "bQ" -> queenB;
+            case "wK" -> kingW;
+            case "bK" -> kingB;
+            default -> throw new IllegalArgumentException("Unknown piece code: " + code);
+        };
+    }
+
+    private void refreshHighlights() {
+        for (SquarePanel[] column : squares) {
+            for (SquarePanel square : column) {
+                square.setHighlight(SquarePanel.Highlight.NONE);
+            }
+        }
+        if (lastMoveFrom != null) squares[lastMoveFrom.x][lastMoveFrom.y].setHighlight(SquarePanel.Highlight.LAST_MOVE);
+        if (lastMoveTo != null) squares[lastMoveTo.x][lastMoveTo.y].setHighlight(SquarePanel.Highlight.LAST_MOVE);
+        if (pos1 != null) {
+            squares[pos1.x][pos1.y].setHighlight(SquarePanel.Highlight.SELECTED);
+            for (Point p : legalMoves) squares[p.x][p.y].setHighlight(SquarePanel.Highlight.LEGAL_MOVE);
+            for (Point p : legalCaptures) squares[p.x][p.y].setHighlight(SquarePanel.Highlight.CAPTURE);
+        }
+        if (Piece.check(board, 'w') && wKing != null) squares[wKing.x][wKing.y].setHighlight(SquarePanel.Highlight.CHECK);
+        if (Piece.check(board, 'b') && bKing != null) squares[bKing.x][bKing.y].setHighlight(SquarePanel.Highlight.CHECK);
+    }
+
+    private void updateTurnLabel() {
+        if (turnLabel != null) {
+            String side = sideToMove == 'w' ? "White" : "Black";
+            turnLabel.setText((gameOver ? "Game over" : side + " to move"));
+        }
+    }
+
+    // --- move rules glue ---
+
+    private static boolean move(char color, Point from, Point to, String[][] board, boolean apply) {
+        return color == 'w' ? Piece.moveWhitePiece(from, to, board, apply) : Piece.moveBlackPiece(from, to, board, apply);
+    }
+
+    private ArrayList<Point> validMoves(Point from) {
+        ArrayList<Point> destinations = new ArrayList<>();
+        char color = board[from.x][from.y].charAt(0);
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
-                JPanel grid = new JPanel(new GridLayout(1, 1));
-                grid.add(new JLabel(new ImageIcon()));
-                grid.addMouseListener(this);
-
-                if (c == 0) {
-                    grid.setBackground(Color.white);
-                } else {
-                    grid.setBackground(Color.darkGray);
-                }
-
-                c = c + 1;
-                c = c % 2;
-
-
-                panel.add(grid, k);
-                k++;
-            }
-
-            c = c + 1;
-            c = c % 2;
-        }
-    }
-
-
-    /**
-     * Converts board coordinates to array coordinates
-     *
-     * @param x Board Coordinate
-     */
-    private Point convertBoardToArray(int x) {
-        int pos = 0;
-
-
-        for (int i = board.length - 1; i >= 0; i--) {
-            for (int j = 0; j < board[i].length; j++) {
-
-                if (pos == x) {
-                    return new Point(j, i);
-                }
-
-                pos++;
+                Point to = new Point(j, i);
+                if (move(color, from, to, board, false)) destinations.add(to);
             }
         }
-        return null;
-
+        return destinations;
     }
 
-    /**
-     * Converts array coordinates to board coordinates
-     *
-     * @param p Board coordinate
-     * @return Array coordinate
-     */
-    private int convertArrayToBoard(Point p) {
-        int k = 0;
-        int x = 0;
-
-        for (int i = board.length - 1; i >= 0; i--) {
-            for (int j = 0; j < board[i].length; j++) {
-                if (p.getX() == j && p.getY() == i) {
-                    x = k;
-                }
-
-                k++;
-            }
+    private List<Point> findCaptures(Point from, List<Point> candidateMoves) {
+        char color = board[from.x][from.y].charAt(0);
+        char enemy = color == 'w' ? 'b' : 'w';
+        List<Point> captures = new ArrayList<>();
+        for (Point p : candidateMoves) {
+            if (board[p.x][p.y].charAt(0) == enemy) captures.add(p);
         }
-
-        return x;
+        return captures;
     }
 
-
-    /**
-     * Updates GUI after move is made on the board representation
-     *
-     * @param arr 2D array that represents the state of the game
-     */
-    private void updateGUI(String[][] arr) {
-        int count = 0;
-        for (int i = arr.length - 1; i >= 0; i--) {
-            for (int j = 0; j < arr.length; j++) {
-                Point p = new Point(j, i);
-                int x = convertArrayToBoard(p);
-
-                if (x == count) {
-                    String piece = arr[p.x][p.y];
-
-                    if (piece.equals("wP")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(pawnW));
-                    } else if (piece.equals("bP")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(pawnB));
-                    } else if (piece.equals("wR")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(rookW));
-                    } else if (piece.equals("bR")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(rookB));
-
-                    } else if (piece.equals("wN")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(knightW));
-
-                    } else if (piece.equals("bN")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(knightB));
-
-                    } else if (piece.equals("wB")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(bishopW));
-
-                    } else if (piece.equals("bB")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(bishopB));
-
-                    } else if (piece.equals("wQ")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(queenW));
-
-                    } else if (piece.equals("bQ")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(queenB));
-
-                    } else if (piece.equals("wK")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(kingW));
-                        wKing = p;
-
-
-                    } else if (piece.equals("bK")) {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(kingB));
-                        bKing = p;
-
-                    } else {
-                        ((JPanel) panel.getComponent(x)).remove(0);
-                        ((JPanel) panel.getComponent(x)).add(new JLabel(new ImageIcon()));
-                    }
-                }
-
-                count++;
-            }
-
-        }
-
-    }
-
-
-    /**
-     * Returns a copy of arr
-     */
-    private String[][] copyOf(String[][] arr) {
-        String[][] temp = new String[arr.length][arr[0].length];
-
-        for (int i = 0; i < arr.length; i++) {
-            System.arraycopy(arr[i], 0, temp[i], 0, arr[i].length);
-        }
-
-        return temp;
-    }
-
-
-    /**
-     * Returns an array of potential moves of pos1 (the initial point)
-     *
-     * @param pos1 Initial position
-     * @param arr  2D array representation of board
-     */
-    private ArrayList<Point> validMoves(Point pos1, String[][] arr) {
-        ArrayList<Point> returns = new ArrayList<>();
-        Point pos2;
-
-        if ((arr[pos1.x][pos1.y].charAt(0) == 'w')) {
-            for (int i = 0; i < arr.length; i++) {
-                for (int j = 0; j < arr.length; j++) {
-                    pos2 = new Point(j, i);
-
-                    if (Piece.moveWhitePiece(pos1, pos2, arr, false)) {
-                        returns.add(pos2);
-
-                    }
-                }
-            }
-        } else if (arr[pos1.x][pos1.y].charAt(0) == 'b') {
-            for (int i = 0; i < arr.length; i++) {
-                for (int j = 0; j < arr.length; j++) {
-                    pos2 = new Point(j, i);
-
-                    if (Piece.moveBlackPiece(pos1, pos2, arr, false)) {
-                        returns.add(pos2);
-
-                    }
-                }
-            }
-        }
-
-        return returns;
-    }
-
-
-    /**
-     * Returns an ArrayList of kills the pieces at pos1 can make
-     *
-     * @param pos1 Initial position
-     * @param p    ArrayList of potential moves
-     */
-    private ArrayList<Point> findKill(Point pos1, ArrayList<Point> p) {
-        ArrayList<Point> returns = new ArrayList<>();
-
-        for (Point value : p) {
-            if ((board[pos1.x][pos1.y].charAt(0) == 'w')) {
-                if ((board[value.x][value.y].charAt(0) == 'b')) {
-                    returns.add(value);
-                }
-            } else {
-                if ((board[value.x][value.y].charAt(0) == 'w')) {
-                    returns.add(value);
-                }
-
-            }
-
-
-        }
-
-        return returns;
-    }
-
-
-    /**
-     * Returns the original color of position p
-     *
-     * @param p the position that will be restored
-     * @return the original color of the grid after the board was created
-     */
-    private Color colorAt(Point p) {
-        int x = convertArrayToBoard(p);
-        if (p.y % 2 == 0) {
-            if (x % 2 == 0) {
-                return Color.darkGray;
-            } else {
-                return Color.white;
-            }
-        } else {
-            if (x % 2 == 0) {
-                return Color.white;
-            } else {
-                return Color.darkGray;
-            }
-        }
-    }
-
-
-    /**
-     * This method implements pawn promotion for the human player
-     *
-     * @param p the position of the pawn at the end of the board
-     */
-    private void promotion(Point p) {
-        input = false;
-
-        //stop the AI from making a move
-        if (mode.equals("AI")) {
-            stopAI = true;
-        }
-
-        //creating buttons and panel
-        JPanel buttonPanel = new JPanel();
-        JButton button1 = new JButton();
-        JButton button2 = new JButton();
-        JButton button3 = new JButton();
-        JButton button4 = new JButton();
-        int x = convertArrayToBoard(p);
-
-        if (p.y == 7) {   //if a white pawn is at the end of the board
-            button1.setIcon(rookW);
-            button2.setIcon(knightW);
-            button3.setIcon(bishopW);
-            button4.setIcon(queenW);
-            ActionListener listener = e -> {
-
-                if (e.getSource() == button1) {  //if the user selects the Rook
-                    board[p.x][p.y] = "wR";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-                    stopAI = false;
-                    AIMove();
-
-
-                } else if (e.getSource() == button2) { //if the user selects the Knight
-                    board[p.x][p.y] = "wN";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-                    stopAI = false;
-                    AIMove();
-
-
-                } else if (e.getSource() == button3) { //if the user selects the Bishop
-                    board[p.x][p.y] = "wB";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-                    stopAI = false;
-                    AIMove();
-
-
-                } else if (e.getSource() == button4) {  //if the user selects the Queen
-                    board[p.x][p.y] = "wQ";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-                    stopAI = false;
-                    AIMove();
-
-
-                }
-            };
-
-
-            button1.addActionListener(listener);
-            button2.addActionListener(listener);
-            button3.addActionListener(listener);
-            button4.addActionListener(listener);
-
-        } else {  //if a black pawn is at the end of the board
-
-            button1.setIcon(rookB);
-            button2.setIcon(knightB);
-            button3.setIcon(bishopB);
-            button4.setIcon(queenB);
-            ActionListener listener = e -> {
-
-                if (e.getSource() == button1) {  //if the user selects the Rook
-                    board[p.x][p.y] = "bR";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-
-
-                } else if (e.getSource() == button2) { //if the user selects the Knight
-                    board[p.x][p.y] = "bN";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-
-
-                } else if (e.getSource() == button3) {  //if the user selects the Bishop
-                    board[p.x][p.y] = "bB";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-
-
-                } else if (e.getSource() == button4) {  //if the user selects the Queen
-                    board[p.x][p.y] = "bQ";
-                    frame.remove(buttonPanel);
-                    updateGUI(board);
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    input = true;
-
-
-                }
-
-            };
-
-            //adding button functionality
-            button1.addActionListener(listener);
-            button2.addActionListener(listener);
-            button3.addActionListener(listener);
-            button4.addActionListener(listener);
-        }
-        //adding buttons to the tile
-        buttonPanel.setLayout(new GridLayout(2, 2));
-        buttonPanel.add(button1);
-        buttonPanel.add(button2);
-        buttonPanel.add(button3);
-        buttonPanel.add(button4);
-        ((JPanel) panel.getComponent(x)).remove(0);
-        ((JPanel) panel.getComponent(x)).add(buttonPanel);
-        frame.invalidate();
-        frame.validate();
-        frame.repaint();
-
-    }
-
-
-    /**
-     * This method implements pawn promotion for the AI
-     *
-     * @param p the position of the pawn at the end of the board
-     */
-    private void promotionAI(Point p) {
-        int random = num.nextInt(2);
-        input = false;
-
-        //change to Bishop or Knight
-        if (depth >= 1 && depth <= 2) {
-            if (random == 0) {
-                board[p.x][p.y] = "bB";
-            } else {
-                board[p.x][p.y] = "bN";
-            }
-
-            updateGUI(board);
-            frame.invalidate();
-            frame.validate();
-            frame.repaint();
-            input = true;
-
-            //change to Rook or Queen
-        } else if (depth >= 2 && depth <= 3) {
-            if (random == 0) {
-                board[p.x][p.y] = "bR";
-            } else {
-
-                board[p.x][p.y] = "bQ";
-            }
-
-            updateGUI(board);
-            frame.invalidate();
-            frame.validate();
-            frame.repaint();
-            input = true;
-
-            //change to queen
-        } else if (depth >= 4) {
-            board[p.x][p.y] = "bQ";
-
-            updateGUI(board);
-            frame.invalidate();
-            frame.validate();
-            frame.repaint();
-            input = true;
-
-        }
-
-    }
-
-
-    /**
-     * Checks for checkmate on both players
-     */
-    private void checkmate() {
-        JButton button1 = new JButton("Reset");
-        JButton button2 = new JButton("Exit");
-
-        if (Piece.checkmate(board, 'b')) {
-
-            gameOver = true;
-            TimerTask task1 = new TimerTask() {
-                @Override
-                public void run() {
-                    panel.removeAll();
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    JLabel msg = new JLabel("White Wins!", SwingConstants.CENTER);
-                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
-
-
-                    ActionListener listener = new ActionListener() {
-                        @Override
-
-                        public void actionPerformed(ActionEvent e) {
-
-                            if (e.getSource() == button1) {
-                                Chess chess = new Chess();
-                                button1.removeActionListener(this);
-                                button2.removeActionListener(this);
-                                Component button = (Component) e.getSource();
-                                Window window = SwingUtilities.windowForComponent(button);
-                                window.setVisible(false);
-                            } else if (e.getSource() == button2) {
-                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                            }
-
-
-                        }
-                    };
-
-                    panel.setLayout(new GridLayout(0, 3));
-                    button1.addActionListener(listener);
-                    button2.addActionListener(listener);
-                    panel.add(msg);
-                    panel.add(button1);
-                    panel.add(button2);
-                    frame.add(panel, BorderLayout.CENTER);
-                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                    frame.setVisible(true);
-
-
-                }
-
-            };
-            timer.schedule(task1, 1000);
-
-
-        } else if (Piece.checkmate(board, 'w')) {
-
-            gameOver = true;
-            TimerTask task1 = new TimerTask() {
-                @Override
-                public void run() {
-                    panel.removeAll();
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    JLabel msg = new JLabel("Black Wins!", SwingConstants.CENTER);
-                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
-
-
-                    ActionListener listener = new ActionListener() {
-                        @Override
-
-                        public void actionPerformed(ActionEvent e) {
-                            if (e.getSource() == button1) {
-                                Chess chess = new Chess();
-                                button1.removeActionListener(this);
-                                button2.removeActionListener(this);
-                                Component button = (Component) e.getSource();
-                                Window window = SwingUtilities.windowForComponent(button);
-                                window.setVisible(false);
-                            } else if (e.getSource() == button2) {
-                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                            }
-
-
-                        }
-                    };
-
-                    panel.setLayout(new GridLayout(0, 3));
-                    button1.addActionListener(listener);
-                    button2.addActionListener(listener);
-                    panel.add(msg);
-                    panel.add(button1);
-                    panel.add(button2);
-                    frame.add(panel, BorderLayout.CENTER);
-                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                    frame.setVisible(true);
-
-
-                }
-
-            };
-            timer.schedule(task1, 1000);
-
-        }
-
-    }
-
-
-    /**
-     * Checks for a draw
-     */
-    private void draw() {
-        JButton button1 = new JButton("Reset");
-        JButton button2 = new JButton("Exit");
-
-
-        if (Piece.draw(board)) {
-
-            gameOver = true;
-            TimerTask task1 = new TimerTask() {
-                @Override
-                public void run() {
-                    panel.removeAll();
-                    frame.invalidate();
-                    frame.validate();
-                    frame.repaint();
-                    JLabel msg = new JLabel("Draw!", SwingConstants.CENTER);
-                    msg.setFont(new Font("Serif", Font.PLAIN, 50));
-
-                    ActionListener listener = new ActionListener() {
-                        @Override
-
-                        public void actionPerformed(ActionEvent e) {
-                            if (e.getSource() == button1) {
-                                Chess chess = new Chess();
-                                button1.removeActionListener(this);
-                                button2.removeActionListener(this);
-                                Component button = (Component) e.getSource();
-                                Window window = SwingUtilities.windowForComponent(button);
-                                window.setVisible(false);
-                            } else if (e.getSource() == button2) {
-                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                            }
-
-
-                        }
-                    };
-
-                    panel.setLayout(new GridLayout(0, 3));
-                    button1.addActionListener(listener);
-                    button2.addActionListener(listener);
-                    panel.add(msg);
-                    panel.add(button1);
-                    panel.add(button2);
-                    frame.add(panel, BorderLayout.CENTER);
-                    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-                    frame.setVisible(true);
-
-
-                }
-
-            };
-            timer.schedule(task1, 1000);
-        }
-    }
-
-
-    /**
-     * Sets background colour of a king into red if that king is in check
-     */
-    private void check() {
-        int wK = convertArrayToBoard(wKing);
-        int bK = convertArrayToBoard(bKing);
-
-        if (Piece.check(board, 'w') || Piece.check(board, 'b')) {
-
-            if (Piece.check(board, 'w') && (!Piece.checkmate(board, 'b') || !Piece.checkmate(board, 'w'))) {
-                panel.getComponent(wK).setBackground(new Color(255, 51, 51));
-
-
-            } else if (!mode.equals("AI") && Piece.check(board, 'b') && (!Piece.checkmate(board, 'b') || !Piece.checkmate(board, 'w'))) {
-                panel.getComponent(bK).setBackground(new Color(255, 51, 51));
-
-            }
-
-
-        } else {
-            if (!Piece.checkmate(board, 'w') || !Piece.checkmate(board, 'b')) {
-                panel.getComponent(wK).setBackground(colorAt(wKing));
-                panel.getComponent(bK).setBackground(colorAt(bKing));
-            }
-        }
-
-    }
-
-
-    /**
-     * Generates a move for the AI
-     */
-    private void AIMove() {
-        if (!stopAI) {
-            int[] result = bot.minimax(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE, true);
-            pos1 = convertBoardToArray(result[0]);
-            pos2 = convertBoardToArray(result[1]);
-
-            Piece.moveBlackPiece(pos1, pos2, board, true);
-            updateGUI(board);
-            frame.setVisible(true);
-
-            //Pawn promotion
-            if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                promotionAI(pos2);
-            }
-
-            check();
-            draw();
-            checkmate();
-            pos1 = null;
-            pos2 = null;
-        }
-    }
-
+    // --- click handling ---
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        int x = e.getComponent().getX() / e.getComponent().getWidth() + 1;        //column of clicked
-        int y = 7 - e.getComponent().getY() / e.getComponent().getHeight() + 1;   //row of clicked
-        int j; // location of clicked converted to board coordinates
-
-
-        if (!gameOver) {   // if game is not over (no checkmate or draw)
-            if (input) {  //if the program is allowing an input
-                if (mode.equals("Human")) {  //Human vs Human
-                    if (turn == 0) {
-
-                        //white initial selection of Human vs Human
-                        if (pos1 == null) {
-                            pos1 = new Point(x - 1, y - 1);
-                            temp = validMoves(pos1, board);
-                            killTemp = findKill(pos1, temp);
-
-                            //only run the code if player picked a valid piece
-                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                if (!board[pos1.x][pos1.y].equals("  ")) {
-                                    j = convertArrayToBoard(pos1);
-                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));  //highlight the tiles of the piece the player selected to move
-                                }
-
-                                for (Point point : temp) {      //highlight the tiles of valid moves the player can get
-                                    int k = convertArrayToBoard(point);
-                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                }
-
-                                for (Point point : killTemp) {    //highlight the tiles if opposing pieces the player can kill
-                                    int k = convertArrayToBoard(point);
-                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                }
-
-                            } else {
-                                pos1 = null;    //if player did not pick a valid piece, make them pick another piece
-                            }
-
-
-                        } else {
-
-                            //white selected move
-                            for (Point value : temp) {      //restore the color of the valid moves tiles highlighted
-                                int k = convertArrayToBoard(value);
-                                panel.getComponent(k).setBackground(colorAt(value));
-                            }
-
-                            //if the player selected a valid drop point
-                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                pos2 = new Point(x - 1, y - 1);    //location the player has decided to drop the piece
-                                j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(colorAt(pos1));   //restore the highlighted tile of pos1 back to its original color
-                                if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
-                                    Piece.moveWhitePiece(pos1, pos2, board, true);
-                                    updateGUI(board);
-                                    frame.setVisible(true);
-
-                                    //check for pawn promotion
-                                    if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                        promotion(pos2);
-                                    }
-
-                                    check();  //check for check
-                                    draw();   //check for draw
-                                    checkmate(); //check for checkmate
-                                    pos1 = null;  //make pos1 to null for next move
-                                    pos2 = null; //make pos2 to null for next move
-                                    turn += 1;
-                                    turn = turn % 2;
-
-                                } else {
-
-                                    //repeats the same process above if white changes initial section
-                                    if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
-                                        pos1 = null;
-                                        if (pos1 == null) {
-                                            pos1 = pos2;
-                                            temp = validMoves(pos1, board);
-                                            killTemp = findKill(pos1, temp);
-
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                                if (!board[pos1.x][pos1.y].equals("  ")) {
-                                                    j = convertArrayToBoard(pos1);
-                                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                                                }
-
-                                                for (Point point : temp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                                }
-
-                                                for (Point point : killTemp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-
-                                        } else {
-
-                                            //selected move after white initial selection is changed
-                                            for (Point point : temp) {
-                                                int k = convertArrayToBoard(point);
-                                                panel.getComponent(k).setBackground(colorAt(point));
-                                            }
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                                pos2 = new Point(x - 1, y - 1);
-                                                j = convertArrayToBoard(pos1);
-                                                panel.getComponent(j).setBackground(colorAt(pos1));
-                                                if (temp.contains(pos2)) {
-                                                    Piece.moveWhitePiece(pos1, pos2, board, true);
-                                                    updateGUI(board);
-                                                    frame.setVisible(true);
-
-                                                    //pawn promotion
-                                                    if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                                        promotion(pos2);
-                                                    }
-
-                                                    check();
-                                                    draw();
-                                                    checkmate();
-                                                    pos1 = null;
-                                                    pos2 = null;
-                                                    turn += 1;
-                                                    turn = turn % 2;
-
-
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-                                        }
-                                    }
-
-                                }
-
-                            } else {
-                                pos1 = null;
-                            }
-                        }
-
-
-                    } else { ////////////////////////////black move
-
-                        //black initial selection of Human vs Human
-                        if (pos1 == null) {
-                            pos1 = new Point(x - 1, y - 1);
-                            temp = validMoves(pos1, board);
-                            killTemp = findKill(pos1, temp);
-
-                            //only run the code if player picked a valid piece
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                if (!board[pos1.x][pos1.y].equals("  ")) {
-                                    j = convertArrayToBoard(pos1);
-                                    panel.getComponent(j).setBackground(new Color(255, 255, 105)); //highlight the tiles of the piece the player selected to move
-                                }
-
-                                for (Point point : temp) {    //highlight the tiles of valid moves the player can get
-                                    int k = convertArrayToBoard(point);
-                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                }
-
-                                for (Point point : killTemp) {  //highlight the tiles if opposing pieces the player can kill
-                                    int k = convertArrayToBoard(point);
-                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                }
-
-                            } else {
-                                pos1 = null; //if player did not pick a valid piece, make them pick another piece
-                            }
-
-
-                        } else {
-
-                            //black selected move
-                            for (Point value : temp) {   //restore the color of the valid moves tiles highlighted
-                                int k = convertArrayToBoard(value);
-                                panel.getComponent(k).setBackground(colorAt(value));
-                            }
-
-                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {   //if the player selected a valid drop point
-                                pos2 = new Point(x - 1, y - 1); //location the player has decided to drop the piece
-                                j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(colorAt(pos1)); //restore the highlighted tile of pos1 back to its original color
-                                if (temp.contains(pos2)) {  //drop the piece if it is a valid location and update the GUI
-                                    Piece.moveBlackPiece(pos1, pos2, board, true);
-                                    updateGUI(board);
-                                    frame.setVisible(true);
-
-                                    //check for pawn promotion
-                                    if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                        promotion(pos2);
-                                    }
-
-                                    check();  //check for check
-                                    draw();   //check for draw
-                                    checkmate();  //check for checkmate
-                                    pos1 = null;  //make pos1 to null for next move
-                                    pos2 = null;  //make pos2 to null for next move
-                                    turn += 1;
-                                    turn = turn % 2;
-
-
-                                } else {
-
-                                    //repeats the same process above if black changes initial section
-                                    if (board[pos2.x][pos2.y].charAt(0) == 'b' && !temp.contains(pos2)) {
-                                        pos1 = null;
-                                        if (pos1 == null) {
-                                            pos1 = pos2;
-                                            temp = validMoves(pos1, board);
-                                            killTemp = findKill(pos1, temp);
-
-
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                                if (!board[pos1.x][pos1.y].equals("  ")) {
-                                                    j = convertArrayToBoard(pos1);
-                                                    panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                                                }
-
-
-                                                for (Point point : temp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                                }
-
-                                                for (Point point : killTemp) {
-                                                    int k = convertArrayToBoard(point);
-                                                    panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-
-
-                                        } else {
-
-                                            //selected move after black initial selection is changed
-                                            for (Point point : temp) {
-                                                int k = convertArrayToBoard(point);
-                                                panel.getComponent(k).setBackground(colorAt(point));
-                                            }
-                                            if (board[pos1.x][pos1.y].charAt(0) != 'w') {
-                                                pos2 = new Point(x - 1, y - 1);
-                                                j = convertArrayToBoard(pos1);
-                                                panel.getComponent(j).setBackground(colorAt(pos1));
-                                                if (temp.contains(pos2)) {
-                                                    Piece.moveBlackPiece(pos1, pos2, board, true);
-                                                    updateGUI(board);
-                                                    frame.setVisible(true);
-
-                                                    //promotion
-                                                    if (pos2.y == 0 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                                        promotion(pos2);
-                                                    }
-
-                                                    check();
-                                                    draw();
-                                                    checkmate();
-                                                    pos1 = null;
-                                                    pos2 = null;
-                                                    turn += 1;
-                                                    turn = turn % 2;
-
-
-                                                }
-
-                                            } else {
-                                                pos1 = null;
-                                            }
-                                        }
-
-                                    }
-
-                                }
-
-                            } else {
-                                pos1 = null;
-                            }
-
-
-                        }
-
-                    }
-
-                } else { //end of human version beginning of Human vs AI
-
-                    //white initial selection for Human vs AI
-                    if (pos1 == null) {
-                        pos1 = new Point(x - 1, y - 1);
-
-                        temp = validMoves(pos1, board);
-                        killTemp = findKill(pos1, temp);
-
-                        if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                            if (!board[pos1.x][pos1.y].equals("  ")) {
-                                j = convertArrayToBoard(pos1);
-                                panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                            }
-
-                            for (Point point : temp) {
-                                int k = convertArrayToBoard(point);
-                                panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                            }
-
-                            for (Point point : killTemp) {
-                                int k = convertArrayToBoard(point);
-                                panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                            }
-
-                        } else {
-                            pos1 = null;
-                        }
-
-
-                    } else {
-
-                        //white selected move
-                        for (Point value : temp) {
-                            int k = convertArrayToBoard(value);
-                            panel.getComponent(k).setBackground(colorAt(value));
-                        }
-
-                        if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                            pos2 = new Point(x - 1, y - 1);
-                            j = convertArrayToBoard(pos1);
-                            panel.getComponent(j).setBackground(colorAt(pos1));
-                            if (temp.contains(pos2)) {
-                                Piece.moveWhitePiece(pos1, pos2, board, true);
-                                updateGUI(board);
-                                frame.setVisible(true);
-
-
-                                //promotion
-                                if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                    promotion(pos2);
-                                }
-
-
-                                check();
-                                draw();
-                                checkmate();
-                                pos1 = null;
-                                pos2 = null;
-                                AIMove(); //AI makes a move
-
-
-                            } else {
-
-                                //if white changes initial section
-                                if (board[pos2.x][pos2.y].charAt(0) == 'w' && !temp.contains(pos2)) {
-                                    pos1 = null;
-                                    if (pos1 == null) {
-                                        pos1 = pos2;
-                                        temp = validMoves(pos1, board);
-                                        killTemp = findKill(pos1, temp);
-
-                                        if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                            if (!board[pos1.x][pos1.y].equals("  ")) {
-                                                j = convertArrayToBoard(pos1);
-                                                panel.getComponent(j).setBackground(new Color(255, 255, 105));
-                                            }
-
-                                            for (Point point : temp) {
-                                                int k = convertArrayToBoard(point);
-                                                panel.getComponent(k).setBackground(new Color(255, 255, 153));
-                                            }
-
-                                            for (Point point : killTemp) {
-                                                int k = convertArrayToBoard(point);
-                                                panel.getComponent(k).setBackground(new Color(255, 51, 51));
-                                            }
-
-                                        } else {
-                                            pos1 = null;
-                                        }
-
-                                    } else {
-
-                                        //selected move after white initial selection is changed
-                                        for (Point point : temp) {
-                                            int k = convertArrayToBoard(point);
-                                            panel.getComponent(k).setBackground(colorAt(point));
-                                        }
-                                        if (board[pos1.x][pos1.y].charAt(0) != 'b') {
-                                            pos2 = new Point(x - 1, y - 1);
-                                            j = convertArrayToBoard(pos1);
-                                            panel.getComponent(j).setBackground(colorAt(pos1));
-                                            if (temp.contains(pos2)) {
-                                                Piece.moveWhitePiece(pos1, pos2, board, true);
-                                                updateGUI(board);
-                                                frame.setVisible(true);
-
-
-                                                //promotion
-                                                if (pos2.y == 7 && board[pos2.x][pos2.y].charAt(1) == 'P') {
-                                                    promotion(pos2);
-                                                }
-
-
-                                                check();
-                                                draw();
-                                                checkmate();
-                                                pos1 = null;
-                                                pos2 = null;
-                                                AIMove(); //AI makes a move
-
-                                            }
-
-                                        } else {
-                                            pos1 = null;
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            pos1 = null;
-                        }
-                    }
-                } //end of AI version
-            } //end of input
-        }// end of game over
+        if (gameOver || !input || !(e.getComponent() instanceof SquarePanel square)) return;
+        if (mode.equals("AI") && sideToMove == aiColor) return;
+
+        Point clicked = new Point(square.arrayX, square.arrayY);
+        if (pos1 == null) {
+            trySelect(clicked);
+        } else {
+            tryMove(clicked);
+        }
     }
 
+    private void trySelect(Point p) {
+        if (!board[p.x][p.y].equals("  ") && board[p.x][p.y].charAt(0) == sideToMove) {
+            pos1 = p;
+            legalMoves = validMoves(pos1);
+            legalCaptures = findCaptures(pos1, legalMoves);
+            refreshHighlights();
+        }
+    }
+
+    private void tryMove(Point p) {
+        if (legalMoves.contains(p)) {
+            Point from = pos1;
+            pos1 = null;
+            legalMoves = new ArrayList<>();
+            legalCaptures = new ArrayList<>();
+            performMove(from, p);
+        } else if (board[p.x][p.y].charAt(0) == sideToMove) {
+            trySelect(p);
+        }
+    }
+
+    // --- move execution ---
+
+    private void performMove(Point from, Point to) {
+        char mover = sideToMove;
+        String movingPiece = board[from.x][from.y];
+        boolean isCastle = movingPiece.charAt(1) == 'K' && Math.abs(to.x - from.x) == 2;
+        boolean destinationWasEmpty = board[to.x][to.y].equals("  ");
+        boolean isEnPassant = movingPiece.charAt(1) == 'P' && from.x != to.x && destinationWasEmpty;
+
+        recordCapture(from, to, movingPiece, destinationWasEmpty, isEnPassant);
+        move(mover, from, to, board, true);
+
+        lastMoveFrom = from;
+        lastMoveTo = to;
+        sideToMove = mover == 'w' ? 'b' : 'w';
+
+        boolean promoting = movingPiece.charAt(1) == 'P' && (to.y == 7 || to.y == 0);
+        logMove(mover, from, to, movingPiece, !destinationWasEmpty || isEnPassant, isCastle, isEnPassant, promoting);
+
+        updateGui();
+
+        if (promoting) {
+            pendingPromotion = to;
+            input = false;
+            if (mode.equals("Human") || mover == humanColor) {
+                showPromotionChoices(to, mover);
+            } else {
+                autoPromote(to, mover);
+            }
+        } else {
+            finishTurn();
+        }
+    }
+
+    private void recordCapture(Point from, Point to, String movingPiece, boolean destinationWasEmpty, boolean isEnPassant) {
+        String captured;
+        if (isEnPassant) {
+            captured = board[to.x][from.y];
+        } else if (!destinationWasEmpty) {
+            captured = board[to.x][to.y];
+        } else {
+            return;
+        }
+        if (captured.charAt(0) == 'w') capturedByBlack.add(captured);
+        else capturedByWhite.add(captured);
+        refreshCapturedPanels();
+    }
+
+    private void refreshCapturedPanels() {
+        capturedByWhiteRow.removeAll();
+        for (String code : capturedByBlack) capturedByWhiteRow.add(smallIcon(code)); // pieces White captured are Black's
+        capturedByBlackRow.removeAll();
+        for (String code : capturedByWhite) capturedByBlackRow.add(smallIcon(code)); // pieces Black captured are White's
+        capturedByWhiteRow.revalidate();
+        capturedByWhiteRow.repaint();
+        capturedByBlackRow.revalidate();
+        capturedByBlackRow.repaint();
+    }
+
+    private JLabel smallIcon(String code) {
+        Image scaled = iconFor(code).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+        return new JLabel(new ImageIcon(scaled));
+    }
+
+    private String squareName(Point p) {
+        return "" + (char) ('a' + p.x) + (p.y + 1);
+    }
+
+    private void logMove(char mover, Point from, Point to, String movingPiece, boolean captured, boolean isCastle, boolean isEnPassant, boolean promoting) {
+        String entry;
+        if (isCastle) {
+            entry = to.x == 6 ? "O-O" : "O-O-O";
+        } else {
+            char type = movingPiece.charAt(1);
+            String prefix = type == 'P' ? "" : String.valueOf(type);
+            entry = prefix + squareName(from) + (captured ? "x" : "-") + squareName(to);
+            if (isEnPassant) entry += " e.p.";
+        }
+        if (promoting) entry += "=?"; // resolved to the real piece once the choice is made, see updatePromotionLogEntry
+
+        if (mover == 'w') {
+            moveLogModel.addElement(fullMoveNumber + ". " + entry);
+        } else {
+            moveLogModel.addElement(fullMoveNumber + "... " + entry);
+            fullMoveNumber++;
+        }
+    }
+
+    private void updatePromotionLogEntry(char promotedTo) {
+        int lastIndex = moveLogModel.size() - 1;
+        if (lastIndex >= 0) {
+            String entry = moveLogModel.get(lastIndex);
+            moveLogModel.set(lastIndex, entry.replace("=?", "=" + promotedTo));
+        }
+    }
+
+    private void finishTurn() {
+        updateGui();
+        if (Piece.checkmate(board, 'w') || Piece.checkmate(board, 'b')) {
+            endGame(Piece.checkmate(board, 'w') ? "Black wins by checkmate!" : "White wins by checkmate!");
+        } else if (Piece.draw(board)) {
+            endGame("Draw!");
+        } else if (mode.equals("AI") && sideToMove == aiColor) {
+            AIMove();
+        }
+    }
+
+    private void endGame(String message) {
+        gameOver = true;
+        updateTurnLabel();
+        gameOverMessage.setText(message);
+        rootLayout.show(this, CARD_GAMEOVER);
+    }
+
+    // --- promotion ---
+
+    private void showPromotionChoices(Point p, char color) {
+        promotionPanel.removeAll();
+        promotionPanel.add(Box.createVerticalGlue());
+        promotionPanel.add(promotionPrompt);
+        promotionPanel.add(Box.createVerticalStrut(20));
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 0));
+        buttons.setBackground(PANEL_BG);
+        for (char type : new char[]{'Q', 'R', 'B', 'N'}) {
+            JButton button = new JButton(iconFor(color + String.valueOf(type)));
+            button.setBackground(ACCENT);
+            button.setFocusPainted(false);
+            button.addActionListener(e -> resolvePromotion(p, color, type));
+            buttons.add(button);
+        }
+        promotionPanel.add(buttons);
+        promotionPanel.add(Box.createVerticalGlue());
+        promotionPanel.revalidate();
+        promotionPanel.repaint();
+        rootLayout.show(this, CARD_PROMOTION);
+    }
+
+    private void resolvePromotion(Point p, char color, char type) {
+        board[p.x][p.y] = color + String.valueOf(type);
+        updatePromotionLogEntry(type);
+        input = true;
+        rootLayout.show(this, CARD_GAMEPLAY);
+        finishTurn();
+    }
+
+    private void autoPromote(Point p, char color) {
+        char type;
+        if (depth <= 2) {
+            type = random.nextBoolean() ? 'B' : 'N';
+        } else if (depth == 3) {
+            type = random.nextBoolean() ? 'R' : 'Q';
+        } else {
+            type = 'Q';
+        }
+        board[p.x][p.y] = color + String.valueOf(type);
+        updatePromotionLogEntry(type);
+        input = true;
+        finishTurn();
+    }
+
+    // --- AI ---
+
+    private void AIMove() {
+        if (gameOver) return;
+        boolean aiMaximizes = aiColor == 'b';
+        int[] result = bot.minimax(board, depth, Integer.MIN_VALUE, Integer.MAX_VALUE, aiMaximizes);
+        Point from = decodeAiSquareIndex(result[0]);
+        Point to = decodeAiSquareIndex(result[1]);
+        performMove(from, to);
+    }
+
+    /**
+     * Decodes a square index produced by {@link AI#minimax}. AI.java encodes
+     * squares independently of this board's on-screen orientation (it has no
+     * notion of {@link #flipped}), so this must always use the same fixed,
+     * non-flipped scheme AI.java's own conversion uses, regardless of how the
+     * human's side is displayed.
+     */
+    private Point decodeAiSquareIndex(int index) {
+        int row = index / 8;
+        int col = index % 8;
+        return new Point(col, 7 - row);
+    }
+
+    // --- MouseListener plumbing ---
 
     @Override
     public void mousePressed(MouseEvent e) {
-
-
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
-
     }
 
     @Override
     public void mouseEntered(MouseEvent e) {
-
     }
 
     @Override
     public void mouseExited(MouseEvent e) {
+    }
 
+    // --- test-visible accessors ---
+
+    char getHumanColor() {
+        return humanColor;
+    }
+
+    char getAiColor() {
+        return aiColor;
+    }
+
+    char getSideToMove() {
+        return sideToMove;
+    }
+
+    boolean isFlipped() {
+        return flipped;
     }
 }
