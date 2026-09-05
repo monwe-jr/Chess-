@@ -651,7 +651,9 @@ public class Board extends JPanel implements MouseListener {
         boolean destinationWasEmpty = board[to.x][to.y].equals("  ");
         boolean isEnPassant = movingPiece.charAt(1) == 'P' && from.x != to.x && destinationWasEmpty;
 
-        recordCapture(from, to, movingPiece, destinationWasEmpty, isEnPassant);
+        if (!recordCapture(from, to, movingPiece, destinationWasEmpty, isEnPassant)) {
+            return; // last-resort guard fired and already ended the game defensively; don't apply the move
+        }
         move(mover, from, to, board, true);
 
         lastMoveFrom = from;
@@ -676,29 +678,44 @@ public class Board extends JPanel implements MouseListener {
         }
     }
 
-    private void recordCapture(Point from, Point to, String movingPiece, boolean destinationWasEmpty, boolean isEnPassant) {
+    /**
+     * @return true if the capture (if any) was recorded normally and the
+     *         caller should go on to apply the move; false if the
+     *         illegal-king-capture guard fired, in which case the game has
+     *         already been ended defensively and the caller must not apply
+     *         the move or continue the turn.
+     */
+    private boolean recordCapture(Point from, Point to, String movingPiece, boolean destinationWasEmpty, boolean isEnPassant) {
         String captured;
         if (isEnPassant) {
             captured = board[to.x][from.y];
         } else if (!destinationWasEmpty) {
             captured = board[to.x][to.y];
         } else {
-            return;
+            return true;
         }
         if (captured.charAt(1) == 'K') {
-            // A king can never legally be captured -- reaching this point means
-            // Piece.checkmate() failed to flag mate on the previous ply and let
-            // play continue into a position where "capturing" the king looked
-            // like a legal move. Refuse the move outright rather than silently
-            // removing a king from the board.
+            // A king can never legally be captured -- reaching this point
+            // means Piece.checkmate()/Piece.stalemate() failed to flag a
+            // terminal position on the previous ply and let play continue
+            // into a position where "capturing" the king looked like a legal
+            // move. This is a last-resort guard, not a normal code path: fail
+            // gracefully (log, tell the user, end the game) rather than
+            // throwing an uncaught exception that takes down the whole app --
+            // a bug in the terminal-detection logic shouldn't also crash the
+            // GUI on top of everything else.
             String message = "Refusing illegal king capture: " + movingPiece + " " + squareName(from) + "-" + squareName(to)
-                    + " would capture " + captured + ". This indicates a missed checkmate detection.";
+                    + " would capture " + captured + ". This indicates a missed checkmate/stalemate detection.";
             System.err.println(message);
-            throw new IllegalStateException(message);
+            JOptionPane.showMessageDialog(this, message + "\n\nThe game will end to avoid corrupting the board.",
+                    "Internal error", JOptionPane.ERROR_MESSAGE);
+            endGame("Game ended: internal error (see console)");
+            return false;
         }
         if (captured.charAt(0) == 'w') capturedByBlack.add(captured);
         else capturedByWhite.add(captured);
         refreshCapturedPanels();
+        return true;
     }
 
     private void refreshCapturedPanels() {
@@ -755,6 +772,12 @@ public class Board extends JPanel implements MouseListener {
             endGame(Piece.checkmate(board, 'w') ? "Black wins by checkmate!" : "White wins by checkmate!");
         } else if (Piece.draw(board)) {
             endGame("Draw!");
+        } else if (Piece.stalemate(board, 'w') || Piece.stalemate(board, 'b')) {
+            // Must be checked (and must end the game) before ever calling
+            // AIMove(): a side with no legal move but not in check is a draw,
+            // not a position to search a move from -- see Piece.stalemate's
+            // doc for what went wrong when this wasn't handled.
+            endGame("Draw by stalemate!");
         } else if (mode.equals("AI") && sideToMove == aiColor) {
             AIMove();
         }
@@ -880,6 +903,11 @@ public class Board extends JPanel implements MouseListener {
 
     boolean isGameOver() {
         return gameOver;
+    }
+
+    /** Lets tests confirm *which* game-over path fired, not just that one did. */
+    String getGameOverMessage() {
+        return gameOverMessage.getText();
     }
 
     SquarePanel squareAt(int x, int y) {

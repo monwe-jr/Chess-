@@ -790,40 +790,64 @@ public class Piece {
     }
 
     /**
-     * Checkmate detection: {@code colour} is in check with no legal move
-     * (of any of their own pieces, to any square) that escapes it. Legality
-     * of each candidate move -- including the resulting self-check -- is
-     * delegated to {@link #moveWhitePiece}/{@link #moveBlackPiece} called
+     * Whether {@code colour} has at least one legal move available, across
+     * every one of their pieces. Legality of each candidate move -- including
+     * the resulting self-check -- is delegated to {@link #movePiece} called
      * with {@code move = false}, so this is a pure scan with no board
-     * mutation.
+     * mutation. Shared by {@link #checkmate} and {@link #stalemate}, which
+     * differ only in whether {@code colour} must also currently be in check.
+     *
+     * @param board the board to look at
+     * @param colour the colour to scan for a legal move
+     * @return true if colour has at least one legal move
+     */
+    static private boolean hasLegalMove(String[][] board, char colour) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (board[i][j].charAt(0) == colour) {
+                    Point pos1 = new Point(i, j);
+                    for (int k = 0; k < 8; k++) {
+                        for (int l = 0; l < 8; l++) {
+                            if (movePiece(pos1, new Point(k, l), board, false, colour)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checkmate detection: {@code colour} is in check with no legal move
+     * that escapes it.
      *
      * @param board the board to look at
      * @param colour the colour to check for
      * @return true if the colour is under checkmate
      */
     static public boolean checkmate(String[][] board, char colour) {
-        Point pos1;
-        Point pos2;
-        if (check(board, colour)) {
-            for (int i = 0; i < 8; i++) {
-                for (int j = 0; j < 8; j++) {
-                    if (board[i][j].charAt(0) == colour) {
-                        pos1 = new Point(i, j);
+        return check(board, colour) && !hasLegalMove(board, colour);
+    }
 
-                        for (int k = 0; k < 8; k++) {
-                            for (int l = 0; l < 8; l++) {
-                                pos2 = new Point(k, l);
-                                if (movePiece(pos1, pos2, board, false, colour)) {
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-        return false;
+    /**
+     * Stalemate detection: {@code colour} is NOT in check but has no legal
+     * move available -- the other "no legal moves" terminal state besides
+     * checkmate, and a draw rather than a loss.
+     *
+     * Missing this case is what let {@link AI#minimax} fall through to a
+     * garbage default move (the AI's side had no legal move but also wasn't
+     * in check, so minimax's terminal check never fired and the search loop
+     * simply never ran) -- see {@code AITest} and {@code BoardTest} for the
+     * regression coverage this came from.
+     *
+     * @param board the board to look at
+     * @param colour the colour to check for
+     * @return true if the colour is stalemated
+     */
+    static public boolean stalemate(String[][] board, char colour) {
+        return !check(board, colour) && !hasLegalMove(board, colour);
     }
 
     /**

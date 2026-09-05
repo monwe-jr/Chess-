@@ -75,6 +75,38 @@ class BoardTest {
         assertTrue(board.isGameOver(), "Qa7# should end the game immediately instead of allowing further play");
     }
 
+    @Test
+    void stalematingTheAiEndsTheGameInsteadOfCrashingOnAGarbageAiMove() {
+        // Regression test for a real crash: the AI (Black) reached a position
+        // with no legal move but not in check -- stalemate, not checkmate --
+        // and AI.minimax's terminal check (before the fix) never covered that
+        // case, so its search loop ran over zero candidate moves and fell
+        // through with its all-zero-default result array. Board.AIMove()
+        // then decoded that as a real move (square index 0 to square index 0,
+        // i.e. a8-a8) and performMove() tried to execute the black king
+        // "capturing" itself, which the illegal-king-capture guard in
+        // recordCapture() correctly refused -- but by throwing an uncaught
+        // IllegalStateException that crashed the whole app instead of ending
+        // the game gracefully.
+        //
+        // Human plays White so the AI (Black) is the side about to be
+        // stalemated; White's queen move from c2 to c7 delivers it.
+        Board board = new Board("AI", 1, 'w');
+        for (String[] file : board.board) {
+            Arrays.fill(file, "  ");
+        }
+        board.board[0][7] = "bK"; // a8
+        board.board[1][5] = "wK"; // b6
+        board.board[2][1] = "wQ"; // c2, one move from Qc7 stalemating black
+
+        click(board, 2, 1); // select the queen
+        click(board, 2, 6); // Qc7, stalemate
+
+        assertTrue(board.isGameOver(), "stalemating the AI must end the game immediately instead of calling AIMove()");
+        assertEquals("Draw by stalemate!", board.getGameOverMessage(),
+                "the game must end via the stalemate branch in finishTurn(), not the illegal-king-capture safety net");
+    }
+
     private static void click(Board board, int x, int y) {
         SquarePanel square = board.squareAt(x, y);
         board.mouseClicked(new MouseEvent(square, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, 0, 0, 1, false));

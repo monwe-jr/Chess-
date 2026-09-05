@@ -166,6 +166,27 @@ class PieceTest {
         assertTrue(Piece.checkmate(board, 'b'));
     }
 
+    // --- stalemate (regression) ---
+    //
+    // Reconstructs the position class behind a real crash: the AI (Black)
+    // had no legal move but wasn't in check, so Piece.checkmate() correctly
+    // returned false -- but nothing else recognized "no legal move and not
+    // in check" as a terminal state either, so AI.minimax fell through to a
+    // garbage default move (see AITest and BoardTest for the rest of the
+    // regression).
+
+    @Test
+    void lockedLoneKingIsStalemateNotCheckmate() {
+        String[][] board = emptyBoard();
+        board[0][7] = "bK"; // a8: boxed into the corner
+        board[1][5] = "wK"; // b6
+        board[2][6] = "wQ"; // c7: covers a7/b7/b8 but doesn't check a8 itself
+
+        assertFalse(Piece.check(board, 'b'), "the black king must not be in check for this to be stalemate");
+        assertFalse(Piece.checkmate(board, 'b'));
+        assertTrue(Piece.stalemate(board, 'b'));
+    }
+
     // --- castling ---
 
     @Test

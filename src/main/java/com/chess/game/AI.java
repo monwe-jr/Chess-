@@ -210,6 +210,20 @@ public class AI {
             return result;
         }
 
+        // Stalemate: the side to move has no legal move but also isn't in
+        // check, so it's neither of the checkmate branches above nor
+        // Piece.draw()'s "only kings remain" case. Without this check, the
+        // maximizing/minimizing loop below would iterate over zero moves and
+        // fall through with result still at its all-zero default -- a
+        // "move" from square index 0 to square index 0, silently executed by
+        // Board.AIMove() as if it were real. Scored as a flat draw (0),
+        // matching how a stalemate is valued regardless of material on the
+        // board.
+        if (Piece.stalemate(arr, 'w') || Piece.stalemate(arr, 'b')) {
+            result[2] = 0;
+            return result;
+        }
+
         if (maximizing) {
             value = Integer.MIN_VALUE;
             ArrayList<Point> moves = getMoves(arr, 'b');
