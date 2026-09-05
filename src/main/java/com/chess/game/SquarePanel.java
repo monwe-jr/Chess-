@@ -20,6 +20,20 @@ class SquarePanel extends JPanel {
 
     enum Highlight { NONE, SELECTED, LEGAL_MOVE, CAPTURE, LAST_MOVE, CHECK }
 
+    /**
+     * True while a manual window resize is actively in progress (see
+     * {@link Board}'s componentResized listener and its resize-settle
+     * {@link javax.swing.Timer}). Every square reads this on every repaint to
+     * pick a cheaper rendering hint for the piece image -- interpolated
+     * (bilinear) scaling is the one genuinely expensive part of painting a
+     * square, and re-doing it for up to 32 pieces on every single resize
+     * tick during a drag is what makes dragging feel laggy. A plain
+     * nearest-neighbor scale during the drag, then one bilinear repaint once
+     * the drag settles, keeps the board tracking the mouse live without
+     * paying interpolation cost on every tick.
+     */
+    static volatile boolean liveResizing;
+
     final int arrayX;
     final int arrayY;
     private final Color baseColor;
@@ -52,8 +66,13 @@ class SquarePanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        boolean resizing = liveResizing;
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, resizing
+                ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+                : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, resizing
+                ? RenderingHints.VALUE_ANTIALIAS_OFF
+                : RenderingHints.VALUE_ANTIALIAS_ON);
 
         int w = getWidth();
         int h = getHeight();

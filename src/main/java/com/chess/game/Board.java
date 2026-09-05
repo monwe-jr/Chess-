@@ -12,17 +12,23 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
+import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.Point;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
@@ -95,6 +101,15 @@ public class Board extends JPanel implements MouseListener {
     private final Random random = new Random();
 
     private final CardLayout rootLayout = new CardLayout();
+    /**
+     * Restarted on every componentResized tick (which can fire many times a
+     * second during a manual drag) and fires once ~120ms after the last one,
+     * i.e. once the drag has actually settled. Used only to switch piece
+     * rendering back to full quality (see {@link SquarePanel#liveResizing});
+     * the layout/bounds recalculation itself is cheap and always runs live so
+     * the board keeps tracking the mouse during the drag.
+     */
+    private final Timer resizeSettleTimer = new Timer(120, e -> onResizeSettled());
     private JLabel turnLabel;
     private JPanel capturedByWhiteRow;
     private JPanel capturedByBlackRow;
@@ -175,17 +190,111 @@ public class Board extends JPanel implements MouseListener {
         setLayout(rootLayout);
         setBackground(PANEL_BG);
 
-        JPanel gameplay = new JPanel(new BorderLayout(12, 12));
+        JPanel gameplay = new JPanel(new GameplayLayout());
         gameplay.setBackground(PANEL_BG);
-        gameplay.setBorder(new EmptyBorder(12, 12, 12, 12));
-        gameplay.add(buildBoardWithCoordinates(), BorderLayout.CENTER);
-        gameplay.add(buildSidePanel(), BorderLayout.EAST);
+        gameplay.add(buildBoardWithCoordinates(), GameplayLayout.BOARD);
+        gameplay.add(buildSidePanel(), GameplayLayout.SIDE);
 
         add(gameplay, CARD_GAMEPLAY);
         add(buildPromotionCard(), CARD_PROMOTION);
         add(buildGameOverCard(), CARD_GAMEOVER);
         rootLayout.show(this, CARD_GAMEPLAY);
+
+        resizeSettleTimer.setRepeats(false);
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                // Cheap only: no rebuilding squares, reloading images, or
+                // calling updateGui()/refreshHighlights() here -- this can
+                // fire many times per second during a manual drag. Layout
+                // itself (via GameplayLayout, reading this component's *own*
+                // current getWidth()/getHeight() -- never a cached value --
+                // already re-runs automatically on every such resize through
+                // Swing's normal invalidate/revalidate path; explicitly
+                // revalidating here too is a cheap (no-op-if-already-
+                // scheduled) backstop specifically for a maximize, which
+                // arrives as one large jump rather than many small ones.
+                SquarePanel.liveResizing = true;
+                revalidate();
+                resizeSettleTimer.restart();
+            }
+        });
     }
+
+    /**
+     * Lays out the gameplay screen as a square board flush against the left
+     * edge (sized to the min of the available width/height budget, so it
+     * stays square and never distorts) and a side panel that absorbs *all*
+     * remaining horizontal space, flush against the board's right edge.
+     *
+     * BorderLayout can't do this: its CENTER region always gets the full
+     * leftover rectangle (which is wider than the square once the board is
+     * capped by height), and EAST only ever takes its own preferred width --
+     * so any extra width from squaring the board would be stranded as a gap
+     * between the board and the side panel instead of being handed to it.
+     */
+    private static final class GameplayLayout implements LayoutManager {
+        static final String BOARD = "board";
+        static final String SIDE = "side";
+
+        private static final int MARGIN = 12;
+        private static final int GAP = 12;
+        private static final int MIN_SIDE_PANEL_WIDTH = 200;
+
+        private Component board;
+        private Component side;
+
+        @Override
+        public void addLayoutComponent(String name, Component comp) {
+            if (BOARD.equals(name)) board = comp;
+            else if (SIDE.equals(name)) side = comp;
+        }
+
+        @Override
+        public void removeLayoutComponent(Component comp) {
+            if (comp == board) board = null;
+            if (comp == side) side = null;
+        }
+
+        @Override
+        public Dimension preferredLayoutSize(Container parent) {
+            return new Dimension(MARGIN * 2 + GAP + MIN_SIDE_PANEL_WIDTH + 480, MARGIN * 2 + 480);
+        }
+
+        @Override
+        public Dimension minimumLayoutSize(Container parent) {
+            return new Dimension(MARGIN * 2 + GAP + MIN_SIDE_PANEL_WIDTH + 40, MARGIN * 2 + 40);
+        }
+
+        @Override
+        public void layoutContainer(Container parent) {
+            Insets insets = parent.getInsets();
+            int width = parent.getWidth() - insets.left - insets.right;
+            int height = parent.getHeight() - insets.top - insets.bottom;
+
+            int heightBudget = Math.max(0, height - MARGIN * 2);
+            int widthBudget = Math.max(0, width - MARGIN * 2 - GAP - MIN_SIDE_PANEL_WIDTH);
+            int boardSide = Math.min(heightBudget, widthBudget);
+
+            int boardX = insets.left + MARGIN;
+            int boardY = insets.top + MARGIN + (heightBudget - boardSide) / 2;
+            if (board != null) board.setBounds(boardX, boardY, boardSide, boardSide);
+
+            int sideX = boardX + boardSide + GAP;
+            int sideWidth = Math.max(0, insets.left + width - sideX - MARGIN);
+            if (side != null) side.setBounds(sideX, insets.top + MARGIN, sideWidth, heightBudget);
+        }
+    }
+
+    /**
+     * Fixed pixel size of the coordinate-label gutter on every side of the
+     * board. Forcing all four gutters to the same size (rather than letting
+     * each label row/column size itself from font metrics) guarantees the
+     * inner 8x8 grid is exactly square whenever the outer square block is
+     * square: subtracting the same gutter from both width and height of a
+     * square leaves a square.
+     */
+    private static final int LABEL_GUTTER = 26;
 
     private JPanel buildBoardWithCoordinates() {
         JPanel grid = new JPanel(new GridLayout(8, 8));
@@ -217,6 +326,9 @@ public class Board extends JPanel implements MouseListener {
     private JPanel fileLabels() {
         JPanel row = new JPanel(new GridLayout(1, 8));
         row.setBackground(BOARD_FRAME_BG);
+        // Only the height is respected by BorderLayout.NORTH/SOUTH; the width
+        // placeholder is irrelevant since those regions stretch to full width.
+        row.setPreferredSize(new Dimension(10, LABEL_GUTTER));
         for (int i = 0; i < 8; i++) {
             int file = flipped ? 7 - i : i;
             row.add(coordinateLabel(String.valueOf((char) ('a' + file))));
@@ -227,6 +339,9 @@ public class Board extends JPanel implements MouseListener {
     private JPanel rankLabels() {
         JPanel col = new JPanel(new GridLayout(8, 1));
         col.setBackground(BOARD_FRAME_BG);
+        // Only the width is respected by BorderLayout.WEST/EAST; the height
+        // placeholder is irrelevant since those regions stretch to full height.
+        col.setPreferredSize(new Dimension(LABEL_GUTTER, 10));
         for (int i = 0; i < 8; i++) {
             int rank = flipped ? i + 1 : 8 - i;
             col.add(coordinateLabel(String.valueOf(rank)));
@@ -395,6 +510,18 @@ public class Board extends JPanel implements MouseListener {
     }
 
     // --- rendering ---
+
+    /**
+     * Fires once a manual resize drag has settled (no componentResized tick
+     * for {@link #resizeSettleTimer}'s delay). Switches piece rendering back
+     * to full quality and repaints once -- the one repaint this triggers is
+     * the only "extra" work in the whole resize path, and it happens at most
+     * once per pause in dragging, not on every tick.
+     */
+    private void onResizeSettled() {
+        SquarePanel.liveResizing = false;
+        repaint();
+    }
 
     private void updateGui() {
         for (int x = 0; x < 8; x++) {
