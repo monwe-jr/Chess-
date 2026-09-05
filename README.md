@@ -8,22 +8,28 @@ Pannu; since polished up for a portfolio.
 ## Features
 
 - **Human vs Human** — pass-and-play on one board.
-- **Human vs AI** — play White against a computer opponent as Black, with
-  three difficulty levels (Easy / Normal / Hard) controlling how many plies
-  ahead the AI searches.
-- Full standard chess rules: legal move generation per piece, check and
-  checkmate detection, castling (kingside and queenside), en passant, and
-  pawn promotion (choice of Queen/Rook/Bishop/Knight for the human player;
-  the AI promotes automatically, biased toward a Queen at higher
-  difficulties).
-- Move highlighting: selecting a piece highlights its legal destinations
-  (yellow) and any capturable enemy pieces (red); a king in check is
+- **Human vs AI** — choose a difficulty (Easy / Normal / Hard, controlling
+  how many plies ahead the AI searches) and then choose to play as White or
+  Black; the AI takes whichever color you didn't pick.
+- Full standard chess rules: legal move generation per piece, check,
+  checkmate, and stalemate detection, castling (kingside and queenside), en
+  passant, and pawn promotion (choice of Queen/Rook/Bishop/Knight for the
+  human player; the AI promotes automatically, biased toward a Queen at
+  higher difficulties).
+- Move highlighting: selecting a piece highlights its square and marks legal
+  destinations with a dot and capturable enemy pieces with a red ring; the
+  squares of the last move played stay highlighted, and a king in check is
   highlighted red.
+- A side panel showing a turn indicator, each side's captured pieces, and a
+  running move log.
+- A **Menu** button, available throughout gameplay (not just after the game
+  ends), that returns to the main menu after a confirmation prompt.
 
 ## How the AI works
 
-The AI (`com.chess.game.AI`) always plays Black and picks moves with
-**minimax search + alpha-beta pruning**:
+The AI (`com.chess.game.AI`) plays whichever color you didn't choose (White
+or Black — see Playing below) and picks moves with **minimax search +
+alpha-beta pruning**:
 
 - At each node, it enumerates every legal move for the side to move (using
   the same rules engine, `Piece`, that validates human moves) and recurses,
@@ -49,10 +55,12 @@ Standard Maven layout:
 
 ```
 src/main/java/com/chess/game/
-    Chess.java   — entry point / mode & difficulty prompt
-    Board.java   — Swing GUI, mouse input, game loop
-    Piece.java   — board representation and move/check/checkmate rules
-    AI.java      — minimax + alpha-beta search and evaluation
+    Chess.java       — entry point / menu flow (mode, difficulty, color prompts)
+    Board.java       — Swing GUI, mouse input, game loop
+    SquarePanel.java — a single board square: base color, highlight overlay, piece image
+    UiTheme.java     — shared colors/fonts for the menu screens and game panel
+    Piece.java       — board representation and move/check/checkmate rules
+    AI.java          — minimax + alpha-beta search and evaluation
 src/main/resources/images/
     *.png        — piece artwork, bundled into the jar as classpath resources
 pom.xml
@@ -89,7 +97,11 @@ into a single runnable `target/Chess.jar`.
 ## Playing
 
 1. Launch the jar. Choose **Human vs AI** or **Human vs Human**.
-2. If Human vs AI, choose a difficulty (Easy/Normal/Hard) — you play White,
-   the AI plays Black.
+2. If Human vs AI, choose a difficulty (Easy/Normal/Hard), then choose to
+   play as **White** or **Black** — the AI plays the other side.
 3. Click a piece to select it (legal moves highlight), then click a
    highlighted square to move there.
+4. The **Menu** button in the side panel returns to the main menu at any
+   point during the game (with a confirmation prompt so you don't lose a
+   game by accident); once the game ends, the game-over screen also offers
+   **New Game** and **Exit**.
