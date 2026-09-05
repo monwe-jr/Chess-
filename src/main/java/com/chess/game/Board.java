@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.function.BooleanSupplier;
 
 /**
  * 3p71 Term Project: Chess
@@ -90,6 +91,7 @@ public class Board extends JPanel implements MouseListener {
     private Runnable onRestart = () -> {
     };
     private Runnable onExit = () -> System.exit(0);
+    private BooleanSupplier restartConfirmationPrompt = this::confirmRestartWithDialog;
 
     private final ImageIcon pawnW = loadIcon("pawnW.png");
     private final ImageIcon pawnB = loadIcon("pawnB.png");
@@ -227,6 +229,11 @@ public class Board extends JPanel implements MouseListener {
         side.setBorder(new EmptyBorder(4, 12, 4, 4));
         side.setPreferredSize(new Dimension(240, 0));
 
+        JButton menuButton = buildQuickMenuButton();
+        menuButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        side.add(menuButton);
+        side.add(Box.createVerticalStrut(16));
+
         turnLabel = new JLabel();
         turnLabel.setFont(UI_FONT_BOLD);
         turnLabel.setForeground(PANEL_FG);
@@ -316,6 +323,45 @@ public class Board extends JPanel implements MouseListener {
         gameOverPanel.add(buttons);
         gameOverPanel.add(Box.createVerticalGlue());
         return gameOverPanel;
+    }
+
+    /**
+     * A small "Menu" escape hatch, reachable during active gameplay and
+     * during a pending promotion choice -- not just from the game-over card.
+     * Always available regardless of whose turn it is or what's mid-flight
+     * (a selected-but-unplayed square, the AI "thinking", a promotion
+     * choice): it asks for confirmation, then defers entirely to the same
+     * {@link #onRestart} callback the game-over "New Game" button uses,
+     * which tears down this whole Board and returns to the main menu. There
+     * is no separate thread or timer in this game to clean up first (the AI
+     * search runs synchronously on the event thread), so nothing extra needs
+     * to happen before handing off.
+     */
+    private JButton buildQuickMenuButton() {
+        JButton button = new JButton("Menu");
+        button.setFont(UI_FONT_BOLD);
+        button.setBackground(ACCENT);
+        button.setForeground(Color.BLACK);
+        button.setFocusPainted(false);
+        button.setBorder(new EmptyBorder(4, 12, 4, 12));
+        button.addActionListener(e -> confirmReturnToMenu());
+        return button;
+    }
+
+    void confirmReturnToMenu() {
+        if (restartConfirmationPrompt.getAsBoolean()) {
+            onRestart.run();
+        }
+    }
+
+    private boolean confirmRestartWithDialog() {
+        int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Restart game and return to the main menu? The current game will be lost.",
+                "Restart game?",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        return choice == JOptionPane.YES_OPTION;
     }
 
     static JButton styledButton(String text) {
@@ -592,6 +638,10 @@ public class Board extends JPanel implements MouseListener {
             buttons.add(button);
         }
         promotionPanel.add(buttons);
+        promotionPanel.add(Box.createVerticalStrut(24));
+        JButton menuButton = buildQuickMenuButton();
+        menuButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        promotionPanel.add(menuButton);
         promotionPanel.add(Box.createVerticalGlue());
         promotionPanel.revalidate();
         promotionPanel.repaint();
@@ -687,5 +737,10 @@ public class Board extends JPanel implements MouseListener {
 
     SquarePanel squareAt(int x, int y) {
         return squares[x][y];
+    }
+
+    /** Lets tests simulate answering the restart confirmation prompt without popping a real modal dialog. */
+    void setRestartConfirmationPrompt(BooleanSupplier restartConfirmationPrompt) {
+        this.restartConfirmationPrompt = restartConfirmationPrompt;
     }
 }

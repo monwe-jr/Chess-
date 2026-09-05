@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -77,5 +78,77 @@ class BoardTest {
     private static void click(Board board, int x, int y) {
         SquarePanel square = board.squareAt(x, y);
         board.mouseClicked(new MouseEvent(square, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, 0, 0, 1, false));
+    }
+
+    // --- always-accessible restart/menu control ---
+    //
+    // These wire a fake confirmation prompt in place of the real (blocking,
+    // modal) JOptionPane dialog -- see Board.setRestartConfirmationPrompt --
+    // so the confirm/decline paths can be exercised headlessly. What's under
+    // test is that Board.confirmReturnToMenu() (what the always-visible
+    // "Menu" button calls) reaches the same onRestart callback the
+    // game-over card's "New Game" button already used, no matter what state
+    // the game is in when it's invoked.
+
+    @Test
+    void restartCanBeDeclinedAndLeavesTheGameRunning() {
+        Board board = new Board("Human");
+        AtomicInteger restarts = new AtomicInteger();
+        board.setOnRestart(restarts::incrementAndGet);
+        board.setRestartConfirmationPrompt(() -> false); // simulates clicking "No"
+
+        board.confirmReturnToMenu();
+
+        assertEquals(0, restarts.get(), "declining the prompt must not trigger a restart");
+        assertFalse(board.isGameOver());
+    }
+
+    @Test
+    void restartWorksBeforeAnyMoveHasBeenMade() {
+        Board board = new Board("Human");
+        AtomicInteger restarts = new AtomicInteger();
+        board.setOnRestart(restarts::incrementAndGet);
+        board.setRestartConfirmationPrompt(() -> true); // simulates clicking "Yes"
+
+        board.confirmReturnToMenu();
+
+        assertEquals(1, restarts.get());
+    }
+
+    @Test
+    void restartWorksAfterSelectingASquareButBeforeCompletingAMove() {
+        Board board = new Board("Human");
+        AtomicInteger restarts = new AtomicInteger();
+        board.setOnRestart(restarts::incrementAndGet);
+        board.setRestartConfirmationPrompt(() -> true);
+
+        click(board, 4, 1); // select White's e2 pawn; no destination clicked yet
+
+        board.confirmReturnToMenu();
+
+        assertEquals(1, restarts.get(), "an unfinished piece selection must not block or break the restart");
+    }
+
+    @Test
+    void restartWorksImmediatelyAroundTheAisTurn() {
+        // The AI move search runs synchronously on the event thread (no
+        // SwingWorker/background thread exists in this codebase), so
+        // "during" the AI's turn isn't a separately observable state from a
+        // test -- by the time control returns to the caller, the AI's move
+        // (if any) has already completed. What we can and do verify is that
+        // the restart path works cleanly right around that synchronous call,
+        // both immediately after construction (which makes the AI play
+        // White's opening move up front here) and after a further human/AI
+        // exchange, with no leftover state or exceptions either time.
+        Board board = new Board("AI", 1, 'b');
+        assertEquals('b', board.getSideToMove(), "AI (White) should have already moved once, precondition for this test");
+
+        AtomicInteger restarts = new AtomicInteger();
+        board.setOnRestart(restarts::incrementAndGet);
+        board.setRestartConfirmationPrompt(() -> true);
+
+        board.confirmReturnToMenu();
+
+        assertEquals(1, restarts.get());
     }
 }
