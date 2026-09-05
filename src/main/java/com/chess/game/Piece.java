@@ -32,6 +32,40 @@ public class Piece {
     static boolean[] enPassantB = new boolean[8];
     public static String[][] board = new String[8][8];
 
+    /**
+     * The handful of things that differ between White's and Black's move
+     * rules: which way pawns advance, which ranks they start/castle on, and
+     * which of the two en passant flag arrays is "mine" versus "theirs".
+     * Pulling these into one small config per colour is what lets
+     * {@link #movePiece} implement both colours' rules once instead of as
+     * two near-identical ~435-line copies.
+     */
+    private static final class ColourRules {
+        final char self;
+        final char enemy;
+        final int direction;            // pawn's forward step: +1 for White, -1 for Black
+        final int pawnStartRank;        // rank index pawns begin on
+        final int enPassantRank;        // rank index a pawn must be on to capture en passant
+        final int backRank;             // king/rook home rank, for castling
+        final boolean[] ownEnPassant;   // flags this colour sets on its own double-step
+        final boolean[] enemyEnPassant; // flags this colour reads to capture the opponent's double-step
+
+        ColourRules(char self, char enemy, int direction, int pawnStartRank, int enPassantRank, int backRank,
+                    boolean[] ownEnPassant, boolean[] enemyEnPassant) {
+            this.self = self;
+            this.enemy = enemy;
+            this.direction = direction;
+            this.pawnStartRank = pawnStartRank;
+            this.enPassantRank = enPassantRank;
+            this.backRank = backRank;
+            this.ownEnPassant = ownEnPassant;
+            this.enemyEnPassant = enemyEnPassant;
+        }
+    }
+
+    private static final ColourRules WHITE_RULES = new ColourRules('w', 'b', 1, 1, 4, 0, enPassantW, enPassantB);
+    private static final ColourRules BLACK_RULES = new ColourRules('b', 'w', -1, 6, 3, 7, enPassantB, enPassantW);
+
     Piece() {
         setupBoard(board);
     }
@@ -73,30 +107,8 @@ public class Piece {
     }
 
     /**
-     * Prints a board to the console. Useful for debugging outside the GUI.
-     * @param in board that needs to be drawn
-     */
-    static public void drawBoard(String[][] in) {
-        for (int i = 7; i > -1; i--) {
-            System.out.println("-----------------------------------------");
-            for (String[] strings : in) {
-                System.out.print("| " + strings[i] + " ");
-            }
-            System.out.println("| " + (i + 1));
-        }
-        System.out.println("-----------------------------------------");
-        System.out.println("  A    B    C    D    E    F    G    H\n");
-    }
-
-    /**
-     * Validates (and optionally performs) a White piece move.
-     *
-     * Handles per-piece movement rules, blocking pieces along rays for
-     * sliding pieces, pawn double-step/diagonal-capture/en passant, and
-     * king castling (kingside and queenside). Every candidate move is first
-     * rejected if it would leave the White king in check ({@link #moveCheck}),
-     * which is how self-checks (including moving into/through check while
-     * castling) are prevented without duplicating check logic per piece.
+     * Validates (and optionally performs) a White piece move. See
+     * {@link #movePiece} for the shared rules implementation.
      *
      * @param pos1 position of the piece to move
      * @param pos2 destination position
@@ -107,434 +119,12 @@ public class Piece {
      * @return true if the move is legal
      */
     static public boolean moveWhitePiece(Point pos1, Point pos2, String[][] board, boolean move) {
-        int x1 = pos1.x;
-        int x2 = pos2.x;
-        int y1 = pos1.y;
-        int y2 = pos2.y;
-        String piece = board[x1][y1];
-
-        if (piece.equals("  ") || piece.charAt(0) == 'b' || piece.charAt(0) != 'w') {
-            return false;
-        }
-
-        if (move) {
-            for (int i = 0; i < 8; i++) {
-                enPassantW[i] = false;
-            }
-        }
-
-        if (moveCheck(board, x1, y1, x2, y2, 'w')) return false;
-
-        if (piece.equals("wP")) {
-            // en passant: capture diagonally onto the file of a pawn that just
-            // double-stepped past this one, removing that pawn from its rank
-            if (y1 == 4 && y2 == 5 && (x2 == x1 + 1 || x2 == x1 - 1) && board[x2][y2].equals("  ") && enPassantB[x2]) {
-                if (move) {
-                    board[x2][y2] = piece;
-                    board[x1][y1] = "  ";
-                    board[x2][y1] = "  ";
-                }
-                return true;
-            }
-            if (x1 == x2) {
-                if (y2 - y1 == 1 || (y2 - y1 == 2 && y1 == 1 && board[x1][y1 + 1].equals("  "))) {
-                    if (board[x2][y2].equals("  ")) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                            if (y1 == 1 && y2 - y1 == 2) {
-                                enPassantW[x1] = true;
-                            }
-                        }
-                        return true;
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-
-            if ((x1 == x2 - 1 || x1 == x2 + 1) && (y2 - y1 == 1)) {
-                if (board[x2][y2].charAt(0) == 'b') {
-                    if (move) {
-                        board[x2][y2] = piece;
-                        board[x1][y1] = "  ";
-                    }
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        if (piece.equals("wK")) {
-            if (board[1][0].equals("  ") && board[2][0].equals("  ") && board[3][0].equals("  ") && board[0][0].equals("wR") && y1 == 0 && x1 == 4 && y2 == 0 && x2 == 2) {
-                if (!check(board, 'w')) {
-                    if (move) {
-                        board[x2][y2] = piece;
-                        board[x1][y1] = "  ";
-                        board[0][0] = "  ";
-                        board[3][0] = "wR";
-                    }
-                    return true;
-                }
-            }
-            if (board[5][0].equals("  ") && board[6][0].equals("  ") && x2 == 6 && y2 == 0 && board[7][0].equals("wR")) {
-                if (!check(board, 'w')) {
-                    if (move) {
-                        board[x2][y2] = piece;
-                        board[x1][y1] = "  ";
-                        board[7][0] = "  ";
-                        board[5][0] = "wR";
-                    }
-                    return true;
-                }
-            }
-            if (x1 == x2 && y1 == y2) {
-                return false;
-            }
-            if ((x2 - x1 == 1 || x2 == x1 || x2 - x1 == -1) && (y2 - y1 == 1 || y2 == y1 || y2 - y1 == -1)) {
-                if (board[x2][y2].equals("  ") || board[x2][y2].charAt(0) == 'b') {
-                    if (move) {
-                        board[x2][y2] = piece;
-                        board[x1][y1] = "  ";
-                    }
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-
-        if (piece.equals("wR")) {
-            if ((x1 == x2 && y1 == y2) && !(y1 == y2 || x1 == x2)) {
-                return false;
-            }
-            if (y2 - y1 > 0 && x1 == x2) {
-                for (int i = 1; i + y1 < 8; i++) {
-                    if (board[x1][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x1 == x2) {
-                for (int i = 1; y1 - i > -1; i++) {
-                    if (board[x1][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (x2 - x1 < 0 && y1 == y2) {
-                for (int i = 1; x1 - i > -1; i++) {
-                    if (board[x1 - i][y1].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (x2 - x1 > 0 && y1 == y2) {
-                for (int i = 1; x1 + i < 8; i++) {
-                    if (board[x1 + i][y1].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
-
-        if (piece.equals("wB")) {
-            if (y1 == y2 || x1 == x2) {
-                return false;
-            }
-            if (y2 - y1 > 0 && x2 - x1 > 0) {
-                for (int i = 1; (i + y1 < 8 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2 && x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 > 0 && x2 - x1 < 0) {
-                for (int i = 1; (i + y1 < 8 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2 && x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x2 - x1 > 0) {
-                for (int i = 1; (y1 - i > -1 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2 && x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x2 - x1 < 0) {
-                for (int i = 1; (y1 - i > -1 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2 && x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        if (piece.equals("wQ")) {
-            if (y2 - y1 > 0 && x1 == x2) {
-                for (int i = 1; i + y1 < 8; i++) {
-                    if (board[x1][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x1 == x2) {
-                for (int i = 1; y1 - i > -1; i++) {
-                    if (board[x1][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (x2 - x1 < 0 && y1 == y2) {
-                for (int i = 1; x1 - i > -1; i++) {
-                    if (board[x1 - i][y1].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (x2 - x1 > 0 && y1 == y2) {
-                for (int i = 1; x1 + i < 8; i++) {
-                    if (board[x1 + i][y1].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 > 0 && x2 - x1 > 0) {
-                for (int i = 1; (i + y1 < 8 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2 && x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 > 0 && x2 - x1 < 0) {
-                for (int i = 1; (i + y1 < 8 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 + i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 + i == y2 && x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1 + i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x2 - x1 > 0) {
-                for (int i = 1; (y1 - i > -1 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2 && x1 + i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 + i][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-            if (y2 - y1 < 0 && x2 - x1 < 0) {
-                for (int i = 1; (y1 - i > -1 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 - i].charAt(0) == 'w') {
-                        return false;
-                    }
-                    if (y1 - i == y2 && x1 - i == x2) {
-                        if (move) {
-                            board[x2][y2] = piece;
-                            board[x1][y1] = "  ";
-                        }
-                        return true;
-                    }
-                    if (board[x1 - i][y1 - i].charAt(0) == 'b') {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        if (piece.equals("wN")) {
-            if ((y2 == y1 + 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == 'w')) {
-                if (move) {
-                    board[x2][y2] = piece;
-                    board[x1][y1] = "  ";
-                }
-                return true;
-            }
-            if ((y2 == y1 - 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == 'w')) {
-                if (move) {
-                    board[x2][y2] = piece;
-                    board[x1][y1] = "  ";
-                }
-                return true;
-            }
-            if ((x2 == x1 + 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == 'w')) {
-                if (move) {
-                    board[x2][y2] = piece;
-                    board[x1][y1] = "  ";
-                }
-                return true;
-            }
-            if ((x2 == x1 - 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == 'w')) {
-                if (move) {
-                    board[x2][y2] = piece;
-                    board[x1][y1] = "  ";
-                }
-                return true;
-            }
-            return false;
-        }
-
-        return false;
+        return movePiece(pos1, pos2, board, move, 'w');
     }
 
     /**
-     * Validates (and optionally performs) a Black piece move. Mirrors
-     * {@link #moveWhitePiece} with colours and pawn direction reversed.
+     * Validates (and optionally performs) a Black piece move. See
+     * {@link #movePiece} for the shared rules implementation.
      *
      * @param pos1 position of the piece to move
      * @param pos2 destination position
@@ -543,26 +133,59 @@ public class Piece {
      *             false, the board is left untouched
      */
     static public boolean moveBlackPiece(Point pos1, Point pos2, String[][] board, boolean move) {
+        return movePiece(pos1, pos2, board, move, 'b');
+    }
+
+    /**
+     * Validates (and optionally performs) a move for {@code colour}.
+     *
+     * Handles per-piece movement rules, blocking pieces along rays for
+     * sliding pieces, pawn double-step/diagonal-capture/en passant, and
+     * king castling (kingside and queenside). Every candidate move is first
+     * rejected if it would leave {@code colour}'s king in check
+     * ({@link #moveCheck}), which is how self-checks (including moving
+     * into/through check while castling) are prevented without duplicating
+     * check logic per piece.
+     *
+     * White and Black differ only in pawn direction, starting/castling
+     * ranks, and which en passant flag array is "mine" versus "theirs" --
+     * see {@link ColourRules}, which captures exactly those differences so
+     * this method implements both colours' rules once.
+     *
+     * @param pos1 position of the piece to move
+     * @param pos2 destination position
+     * @param board board the move is validated/applied against
+     * @param move if true, the board is mutated when the move is legal; if
+     *             false, the board is left untouched (used for move
+     *             generation and checkmate scans)
+     * @param colour the colour of the piece being moved ('w' or 'b')
+     * @return true if the move is legal
+     */
+    static private boolean movePiece(Point pos1, Point pos2, String[][] board, boolean move, char colour) {
+        ColourRules c = colour == 'w' ? WHITE_RULES : BLACK_RULES;
         int x1 = pos1.x;
         int x2 = pos2.x;
         int y1 = pos1.y;
         int y2 = pos2.y;
         String piece = board[x1][y1];
 
-        if (piece.equals("  ") || piece.charAt(0) == 'w' || piece.charAt(0) != 'b') {
+        if (piece.equals("  ") || piece.charAt(0) == c.enemy || piece.charAt(0) != c.self) {
             return false;
         }
+
         if (move) {
             for (int i = 0; i < 8; i++) {
-                enPassantB[i] = false;
+                c.ownEnPassant[i] = false;
             }
         }
-        if (moveCheck(board, x1, y1, x2, y2, 'b')) return false;
 
-        if (piece.equals("bP")) {
+        if (moveCheck(board, x1, y1, x2, y2, c.self)) return false;
+
+        if (piece.charAt(1) == 'P') {
             // en passant: capture diagonally onto the file of a pawn that just
             // double-stepped past this one, removing that pawn from its rank
-            if (y1 == 3 && y2 == 2 && (x2 == x1 + 1 || x2 == x1 - 1) && board[x2][y2].equals("  ") && enPassantW[x2]) {
+            if (y1 == c.enPassantRank && y2 == c.enPassantRank + c.direction
+                    && (x2 == x1 + 1 || x2 == x1 - 1) && board[x2][y2].equals("  ") && c.enemyEnPassant[x2]) {
                 if (move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
@@ -571,13 +194,13 @@ public class Piece {
                 return true;
             }
             if (x1 == x2) {
-                if (y2 - y1 == -1 || (y2 - y1 == -2 && y1 == 6 && board[x1][y1 - 1].equals("  "))) {
+                if (y2 - y1 == c.direction || (y2 - y1 == 2 * c.direction && y1 == c.pawnStartRank && board[x1][y1 + c.direction].equals("  "))) {
                     if (board[x2][y2].equals("  ")) {
                         if (move) {
                             board[x2][y2] = piece;
                             board[x1][y1] = "  ";
-                            if (y1 == 6 && y2 - y1 == -2) {
-                                enPassantB[x1] = true;
+                            if (y1 == c.pawnStartRank && y2 - y1 == 2 * c.direction) {
+                                c.ownEnPassant[x1] = true;
                             }
                         }
                         return true;
@@ -588,8 +211,9 @@ public class Piece {
                     return false;
                 }
             }
-            if ((x1 == x2 - 1 || x1 == x2 + 1) && (y2 - y1 == -1)) {
-                if (board[x2][y2].charAt(0) == 'w') {
+
+            if ((x1 == x2 - 1 || x1 == x2 + 1) && (y2 - y1 == c.direction)) {
+                if (board[x2][y2].charAt(0) == c.enemy) {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
@@ -601,25 +225,27 @@ public class Piece {
             }
         }
 
-        if (piece.equals("bK")) {
-            if (board[1][7].equals("  ") && board[2][7].equals("  ") && board[3][7].equals("  ") && board[0][7].equals("bR") && y1 == 7 && x1 == 4 && y2 == 7 && x2 == 2) {
-                if (!check(board, 'b')) {
+        if (piece.charAt(1) == 'K') {
+            if (board[1][c.backRank].equals("  ") && board[2][c.backRank].equals("  ") && board[3][c.backRank].equals("  ")
+                    && board[0][c.backRank].equals(c.self + "R") && y1 == c.backRank && x1 == 4 && y2 == c.backRank && x2 == 2) {
+                if (!check(board, c.self)) {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
-                        board[0][7] = "  ";
-                        board[3][7] = "bR";
+                        board[0][c.backRank] = "  ";
+                        board[3][c.backRank] = c.self + "R";
                     }
                     return true;
                 }
             }
-            if (board[5][7].equals("  ") && board[6][7].equals("  ") && x2 == 6 && y2 == 7 && board[7][7].equals("bR")) {
-                if (!check(board, 'b')) {
+            if (board[5][c.backRank].equals("  ") && board[6][c.backRank].equals("  ") && x2 == 6 && y2 == c.backRank
+                    && board[7][c.backRank].equals(c.self + "R")) {
+                if (!check(board, c.self)) {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
-                        board[7][7] = "  ";
-                        board[5][7] = "bR";
+                        board[7][c.backRank] = "  ";
+                        board[5][c.backRank] = c.self + "R";
                     }
                     return true;
                 }
@@ -628,7 +254,7 @@ public class Piece {
                 return false;
             }
             if ((x2 - x1 == 1 || x2 == x1 || x2 - x1 == -1) && (y2 - y1 == 1 || y2 == y1 || y2 - y1 == -1)) {
-                if (board[x2][y2].equals("  ") || board[x2][y2].charAt(0) == 'w') {
+                if (board[x2][y2].equals("  ") || board[x2][y2].charAt(0) == c.enemy) {
                     if (move) {
                         board[x2][y2] = piece;
                         board[x1][y1] = "  ";
@@ -642,13 +268,10 @@ public class Piece {
             }
         }
 
-        if (piece.equals("bR")) {
-            if ((x1 == x2 && y1 == y2) || !(y1 == y2 || x1 == x2)) {
-                return false;
-            }
+        if (piece.charAt(1) == 'R') {
             if (y2 - y1 > 0 && x1 == x2) {
                 for (int i = 1; i + y1 < 8; i++) {
-                    if (board[x1][y1 + i].charAt(0) == 'b') {
+                    if (board[x1][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2) {
@@ -658,14 +281,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1][y1 + i].charAt(0) == 'w') {
+                    if (board[x1][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x1 == x2) {
                 for (int i = 1; y1 - i > -1; i++) {
-                    if (board[x1][y1 - i].charAt(0) == 'b') {
+                    if (board[x1][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2) {
@@ -675,14 +298,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1][y1 - i].charAt(0) == 'w') {
+                    if (board[x1][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (x2 - x1 < 0 && y1 == y2) {
                 for (int i = 1; x1 - i > -1; i++) {
-                    if (board[x1 - i][y1].charAt(0) == 'b') {
+                    if (board[x1 - i][y1].charAt(0) == c.self) {
                         return false;
                     }
                     if (x1 - i == x2) {
@@ -692,14 +315,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1].charAt(0) == 'w') {
+                    if (board[x1 - i][y1].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (x2 - x1 > 0 && y1 == y2) {
                 for (int i = 1; x1 + i < 8; i++) {
-                    if (board[x1 + i][y1].charAt(0) == 'b') {
+                    if (board[x1 + i][y1].charAt(0) == c.self) {
                         return false;
                     }
                     if (x1 + i == x2) {
@@ -709,7 +332,7 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1].charAt(0) == 'w') {
+                    if (board[x1 + i][y1].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
@@ -717,13 +340,13 @@ public class Piece {
             return false;
         }
 
-        if (piece.equals("bB")) {
+        if (piece.charAt(1) == 'B') {
             if (y1 == y2 || x1 == x2) {
                 return false;
             }
             if (y2 - y1 > 0 && x2 - x1 > 0) {
                 for (int i = 1; (i + y1 < 8 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 + i].charAt(0) == 'b') {
+                    if (board[x1 + i][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2 && x1 + i == x2) {
@@ -733,14 +356,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1 + i].charAt(0) == 'w') {
+                    if (board[x1 + i][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 > 0 && x2 - x1 < 0) {
                 for (int i = 1; (i + y1 < 8 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 + i].charAt(0) == 'b') {
+                    if (board[x1 - i][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2 && x1 - i == x2) {
@@ -750,14 +373,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1 + i].charAt(0) == 'w') {
+                    if (board[x1 - i][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x2 - x1 > 0) {
                 for (int i = 1; (y1 - i > -1 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 - i].charAt(0) == 'b') {
+                    if (board[x1 + i][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2 && x1 + i == x2) {
@@ -767,14 +390,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1 - i].charAt(0) == 'w') {
+                    if (board[x1 + i][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x2 - x1 < 0) {
                 for (int i = 1; (y1 - i > -1 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 - i].charAt(0) == 'b') {
+                    if (board[x1 - i][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2 && x1 - i == x2) {
@@ -784,17 +407,17 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1 - i].charAt(0) == 'w') {
+                    if (board[x1 - i][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
         }
 
-        if (piece.equals("bQ")) {
+        if (piece.charAt(1) == 'Q') {
             if (y2 - y1 > 0 && x1 == x2) {
                 for (int i = 1; i + y1 < 8; i++) {
-                    if (board[x1][y1 + i].charAt(0) == 'b') {
+                    if (board[x1][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2) {
@@ -804,14 +427,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1][y1 + i].charAt(0) == 'w') {
+                    if (board[x1][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x1 == x2) {
                 for (int i = 1; y1 - i > -1; i++) {
-                    if (board[x1][y1 - i].charAt(0) == 'b') {
+                    if (board[x1][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2) {
@@ -821,14 +444,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1][y1 - i].charAt(0) == 'w') {
+                    if (board[x1][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (x2 - x1 < 0 && y1 == y2) {
                 for (int i = 1; x1 - i > -1; i++) {
-                    if (board[x1 - i][y1].charAt(0) == 'b') {
+                    if (board[x1 - i][y1].charAt(0) == c.self) {
                         return false;
                     }
                     if (x1 - i == x2) {
@@ -838,14 +461,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1].charAt(0) == 'w') {
+                    if (board[x1 - i][y1].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (x2 - x1 > 0 && y1 == y2) {
                 for (int i = 1; x1 + i < 8; i++) {
-                    if (board[x1 + i][y1].charAt(0) == 'b') {
+                    if (board[x1 + i][y1].charAt(0) == c.self) {
                         return false;
                     }
                     if (x1 + i == x2) {
@@ -855,14 +478,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1].charAt(0) == 'w') {
+                    if (board[x1 + i][y1].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 > 0 && x2 - x1 > 0) {
                 for (int i = 1; (i + y1 < 8 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 + i].charAt(0) == 'b') {
+                    if (board[x1 + i][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2 && x1 + i == x2) {
@@ -872,14 +495,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1 + i].charAt(0) == 'w') {
+                    if (board[x1 + i][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 > 0 && x2 - x1 < 0) {
                 for (int i = 1; (i + y1 < 8 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 + i].charAt(0) == 'b') {
+                    if (board[x1 - i][y1 + i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 + i == y2 && x1 - i == x2) {
@@ -889,14 +512,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1 + i].charAt(0) == 'w') {
+                    if (board[x1 - i][y1 + i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x2 - x1 > 0) {
                 for (int i = 1; (y1 - i > -1 && i + x1 < 8); i++) {
-                    if (board[x1 + i][y1 - i].charAt(0) == 'b') {
+                    if (board[x1 + i][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2 && x1 + i == x2) {
@@ -906,14 +529,14 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 + i][y1 - i].charAt(0) == 'w') {
+                    if (board[x1 + i][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
             if (y2 - y1 < 0 && x2 - x1 < 0) {
                 for (int i = 1; (y1 - i > -1 && x1 - i > -1); i++) {
-                    if (board[x1 - i][y1 - i].charAt(0) == 'b') {
+                    if (board[x1 - i][y1 - i].charAt(0) == c.self) {
                         return false;
                     }
                     if (y1 - i == y2 && x1 - i == x2) {
@@ -923,36 +546,36 @@ public class Piece {
                         }
                         return true;
                     }
-                    if (board[x1 - i][y1 - i].charAt(0) == 'w') {
+                    if (board[x1 - i][y1 - i].charAt(0) == c.enemy) {
                         return false;
                     }
                 }
             }
         }
 
-        if (piece.equals("bN")) {
-            if ((y2 == y1 + 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == 'b')) {
+        if (piece.charAt(1) == 'N') {
+            if ((y2 == y1 + 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == c.self)) {
                 if (move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
                 }
                 return true;
             }
-            if ((y2 == y1 - 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == 'b')) {
+            if ((y2 == y1 - 2 && (x1 == x2 - 1 || x1 == x2 + 1)) && !(board[x2][y2].charAt(0) == c.self)) {
                 if (move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
                 }
                 return true;
             }
-            if ((x2 == x1 + 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == 'b')) {
+            if ((x2 == x1 + 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == c.self)) {
                 if (move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
                 }
                 return true;
             }
-            if ((x2 == x1 - 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == 'b')) {
+            if ((x2 == x1 - 2 && (y1 == y2 - 1 || y1 == y2 + 1)) && !(board[x2][y2].charAt(0) == c.self)) {
                 if (move) {
                     board[x2][y2] = piece;
                     board[x1][y1] = "  ";
@@ -1023,19 +646,18 @@ public class Piece {
             }
         }
 
-        if (x - 1 > -1) {
-            if ((colour == 'w') && (y + 1 < 8) && (board[x - 1][y + 1].equals(pawn))) {
+        // An enemy pawn attacks diagonally toward its own forward direction,
+        // so a pawn threatening this king sits one rank further along that
+        // same direction from the king (White's pawns attack upward, so a
+        // black pawn threatening a white king is one rank above it, and
+        // vice versa) -- one rank check shared by both colours instead of a
+        // colour-branched pair of checks in each x-direction.
+        int pawnAttackRank = colour == 'w' ? y + 1 : y - 1;
+        if (pawnAttackRank > -1 && pawnAttackRank < 8) {
+            if (x - 1 > -1 && board[x - 1][pawnAttackRank].equals(pawn)) {
                 return true;
             }
-            if ((colour == 'b') && (y - 1 > -1) && (board[x - 1][y - 1].equals(pawn))) {
-                return true;
-            }
-        }
-        if (x + 1 < 8) {
-            if ((colour == 'w') && (y + 1 < 8) && (board[x + 1][y + 1].equals(pawn))) {
-                return true;
-            }
-            if ((colour == 'b') && (y - 1 > -1) && (board[x + 1][y - 1].equals(pawn))) {
+            if (x + 1 < 8 && board[x + 1][pawnAttackRank].equals(pawn)) {
                 return true;
             }
         }
@@ -1191,10 +813,7 @@ public class Piece {
                         for (int k = 0; k < 8; k++) {
                             for (int l = 0; l < 8; l++) {
                                 pos2 = new Point(k, l);
-                                if (colour == 'w' && moveWhitePiece(pos1, pos2, board, false)) {
-                                    return false;
-                                }
-                                if (colour == 'b' && moveBlackPiece(pos1, pos2, board, false)) {
+                                if (movePiece(pos1, pos2, board, false, colour)) {
                                     return false;
                                 }
                             }
