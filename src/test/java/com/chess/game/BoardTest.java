@@ -2,6 +2,9 @@ package com.chess.game;
 
 import org.junit.jupiter.api.Test;
 
+import java.awt.event.MouseEvent;
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,5 +48,34 @@ class BoardTest {
 
         assertFalse(board.isFlipped());
         assertEquals('w', board.getSideToMove());
+    }
+
+    @Test
+    void deliveringABasicQueenAndKingMateEndsTheGameInsteadOfContinuingPlay() {
+        // Regression test for a bug where a real game ended with the black
+        // king captured off the board instead of the game ending in
+        // checkmate the move before: Piece.checkmate() had a false-negative
+        // case (see PieceTest), so Board never called endGame() and the
+        // opposing side was allowed to keep playing into the king. Here we
+        // drive the actual click-handling path -- not just Piece.checkmate()
+        // directly -- to confirm the whole game loop reacts correctly when
+        // White plays the mating move.
+        Board board = new Board("Human");
+        for (String[] file : board.board) {
+            Arrays.fill(file, "  ");
+        }
+        board.board[0][7] = "bK"; // a8
+        board.board[1][5] = "wK"; // b6, defends a7
+        board.board[0][1] = "wQ"; // a2, one legal move from Qa7#
+
+        click(board, 0, 1); // select the queen
+        click(board, 0, 6); // Qa7#
+
+        assertTrue(board.isGameOver(), "Qa7# should end the game immediately instead of allowing further play");
+    }
+
+    private static void click(Board board, int x, int y) {
+        SquarePanel square = board.squareAt(x, y);
+        board.mouseClicked(new MouseEvent(square, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(), 0, 0, 0, 1, false));
     }
 }

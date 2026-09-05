@@ -991,6 +991,7 @@ public class Piece {
         String rook = opposite + "R";
         String bishop = opposite + "B";
         String pawn = opposite + "P";
+        String enemyKing = opposite + "K";
         int x = 0;
         int y = 0;
 
@@ -1000,6 +1001,24 @@ public class Piece {
                     x = i;
                     y = j;
                     break;
+                }
+            }
+        }
+
+        // Kings may never stand adjacent to each other: moving into (or
+        // staying in) a square next to the enemy king is itself check. This
+        // matters most in king-and-queen-type endgames, where an escape
+        // square is often unguarded by any piece but is controlled solely by
+        // the defending king's own king -- without this, checkmate() can
+        // miss mates whose only "escape" is capturing onto or stepping next
+        // to a square the enemy king itself covers.
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = x + dx;
+                int ny = y + dy;
+                if (nx > -1 && nx < 8 && ny > -1 && ny < 8 && board[nx][ny].equals(enemyKing)) {
+                    return true;
                 }
             }
         }

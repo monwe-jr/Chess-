@@ -492,6 +492,17 @@ public class Board extends JPanel implements MouseListener {
         } else {
             return;
         }
+        if (captured.charAt(1) == 'K') {
+            // A king can never legally be captured -- reaching this point means
+            // Piece.checkmate() failed to flag mate on the previous ply and let
+            // play continue into a position where "capturing" the king looked
+            // like a legal move. Refuse the move outright rather than silently
+            // removing a king from the board.
+            String message = "Refusing illegal king capture: " + movingPiece + " " + squareName(from) + "-" + squareName(to)
+                    + " would capture " + captured + ". This indicates a missed checkmate detection.";
+            System.err.println(message);
+            throw new IllegalStateException(message);
+        }
         if (captured.charAt(0) == 'w') capturedByBlack.add(captured);
         else capturedByWhite.add(captured);
         refreshCapturedPanels();
@@ -668,5 +679,13 @@ public class Board extends JPanel implements MouseListener {
 
     boolean isFlipped() {
         return flipped;
+    }
+
+    boolean isGameOver() {
+        return gameOver;
+    }
+
+    SquarePanel squareAt(int x, int y) {
+        return squares[x][y];
     }
 }

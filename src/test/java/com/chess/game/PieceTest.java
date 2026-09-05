@@ -110,6 +110,62 @@ class PieceTest {
         assertFalse(Piece.checkmate(board, 'b'));
     }
 
+    // --- checkmate positions (regression) ---
+    //
+    // These reconstruct the class of position behind a real bug: a game
+    // ended with the black king captured directly off the board instead of
+    // the game ending in checkmate the move before. The root cause was that
+    // Piece.check() never treated the enemy king's adjacency as an attack,
+    // so a defending king could be judged free to step onto (or capture
+    // onto) a square that was actually covered only by the opposing king --
+    // most commonly the only way a lone king can be boxed into a basic
+    // king-and-queen mate. That let checkmate() return a false negative,
+    // play continued, and the following move captured the king outright.
+
+    @Test
+    void backRankMateIsDetected() {
+        String[][] board = emptyBoard();
+        board[6][0] = "wK"; // g1
+        board[5][1] = "wP"; // f2
+        board[6][1] = "wP"; // g2
+        board[7][1] = "wP"; // h2
+        board[3][0] = "bR"; // d1, checks along the back rank
+        board[4][7] = "bK"; // e8
+
+        assertTrue(Piece.check(board, 'w'));
+        assertTrue(Piece.checkmate(board, 'w'));
+    }
+
+    @Test
+    void smotheredMateIsDetected() {
+        String[][] board = emptyBoard();
+        board[7][7] = "bK"; // h8
+        board[6][7] = "bR"; // g8, blocks its own king's escape
+        board[6][6] = "bP"; // g7, blocks its own king's escape
+        board[7][6] = "bP"; // h7, blocks its own king's escape
+        board[5][6] = "wN"; // f7, delivers check with no capture or block available
+        board[0][0] = "wK"; // a1
+
+        assertTrue(Piece.check(board, 'b'));
+        assertTrue(Piece.checkmate(board, 'b'));
+    }
+
+    @Test
+    void queenAndKingBasicMateIsDetectedWhenTheOnlyEscapeIsDefendedByTheEnemyKing() {
+        // The mated king's only three squares are: the queen itself
+        // (defended solely by the white king's adjacency, not by any other
+        // piece), and two squares the queen attacks directly. Before the
+        // check() fix, capturing the "undefended-looking" queen was wrongly
+        // treated as a legal escape.
+        String[][] board = emptyBoard();
+        board[0][7] = "bK"; // a8
+        board[1][5] = "wK"; // b6, defends a7
+        board[0][6] = "wQ"; // a7, delivers check and is only defended by the king
+
+        assertTrue(Piece.check(board, 'b'));
+        assertTrue(Piece.checkmate(board, 'b'));
+    }
+
     // --- castling ---
 
     @Test
